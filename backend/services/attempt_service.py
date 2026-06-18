@@ -15,6 +15,48 @@ logger = logging.getLogger("edutest.attempt")
 HEARTBEAT_PREFIX = "edutest:heartbeat:"
 HEARTBEAT_TTL = 1200  # 20 min minimum; actual TTL uses exam duration + buffer
 
+# Per-question metadata keys safe to send to a student during an in-progress attempt.
+# Everything else reveals the answer: correct_keys / correct_key / correct_answer /
+# keywords / case_sensitive / strict_mode / explanation, plus per-option `is_correct`.
+_SAFE_META_DISPLAY_KEYS = ("image", "image_url", "media", "category", "topic")
+
+
+def _sanitize_question_for_student(q):
+    meta = q.get("metadata") or {}
+    safe_options = [
+        {"key": o.get("key"), "text": o.get("text")}
+        for o in (meta.get("options") or [])
+    ]
+    safe_meta = {"options": safe_options}
+    # Preserve a multi-select hint (how many to choose, not which) without leaking keys.
+    correct_keys = meta.get("correct_keys")
+    if isinstance(correct_keys, list) and len(correct_keys) > 1:
+        safe_meta["multiple"] = True
+    for k in _SAFE_META_DISPLAY_KEYS:
+        if meta.get(k) is not None:
+            safe_meta[k] = meta[k]
+    return {
+        "question_id": q.get("question_id"),
+        "question_text": q.get("question_text"),
+        "question_type": q.get("question_type"),
+        "order": q.get("order"),
+        "points": q.get("points"),
+        "metadata": safe_meta,
+    }
+
+
+def sanitize_snapshot_for_student(snapshot_data):
+    """Strip answer-revealing fields from an ExamSnapshot before exposing it to a
+    student client (the `state` endpoint and the student-login response). Scoring
+    reads the correct answers server-side from the DB snapshot, never from the client."""
+    if not snapshot_data:
+        return snapshot_data
+    data = dict(snapshot_data)
+    data["questions"] = [
+        _sanitize_question_for_student(q) for q in snapshot_data.get("questions", [])
+    ]
+    return data
+
 
 class AttemptService:
 
@@ -67,7 +109,7 @@ class AttemptService:
             "saved_answers": saved,
             "questions_count": len(questions),
             "answered_count": len(saved),
-            "exam_snapshot": snapshot_data,
+            "exam_snapshot": sanitize_snapshot_for_student(snapshot_data),
         }
 
     def detect_and_mark_abandoned(self, organization_id):

@@ -15,7 +15,7 @@ from ..models import Attempt, Exam, ProctoringEvent, Student, User
 from ..serializers import (
     AttemptDetailSerializer, AttemptSerializer, SubmitExamSerializer,
 )
-from services.attempt_service import AttemptService
+from services.attempt_service import AttemptService, sanitize_snapshot_for_student
 from services.exam_engine import ExamEngine
 from services.exceptions import (
     AttemptAlreadyCompletedError, AttemptNotFoundError, AttemptNotInProgressError,
@@ -458,7 +458,7 @@ class StudentLoginView(APIView):
             {
                 "attempt_id": str(attempt.id),
                 "attempt_token": str(token),
-                "exam_snapshot": attempt.snapshot.snapshot_data,
+                "exam_snapshot": sanitize_snapshot_for_student(attempt.snapshot.snapshot_data),
                 "time_remaining_seconds": time_remaining_seconds,
                 "ends_at": ends_at,
                 "block_tab_switch": exam.block_tab_switch,

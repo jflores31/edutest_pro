@@ -6,6 +6,18 @@ y el proyecto adopta [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [0.1.1] — 2026-06-18
+
+### Security
+- **Fuga de respuestas corregida:** el snapshot que se enviaba al estudiante
+  (endpoint `GET /attempts/:id/state/` y respuesta de `POST /auth/student/login/`)
+  incluía las respuestas correctas (`correct_keys`, `correct_key`, `correct_answer`,
+  `keywords`, `case_sensitive`, `strict_mode`, `explanation` y el `is_correct` de
+  cada opción). Ahora se sanea con `sanitize_snapshot_for_student()` (whitelist:
+  solo `key`/`text` de opciones, una pista `multiple` no reveladora y campos de
+  display seguros). La calificación sigue leyendo las respuestas del snapshot en BD,
+  nunca del cliente. Cubierto por `SnapshotSanitizationTest`.
+
 ## [0.1.0] — 2026-06-18
 
 Primera versión bajo control de versiones. El proyecto pasó a git y quedó listo
@@ -50,5 +62,6 @@ de un análisis completo del código.
 - Pendiente conocido: el endpoint `GET /attempts/:id/state/` expone el snapshot
   con las respuestas correctas al cliente del estudiante (a sanear en backend).
 
-[Unreleased]: https://github.com/jflores31/edutest_pro/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/jflores31/edutest_pro/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/jflores31/edutest_pro/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/jflores31/edutest_pro/releases/tag/v0.1.0

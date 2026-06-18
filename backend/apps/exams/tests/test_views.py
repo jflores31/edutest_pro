@@ -651,3 +651,68 @@ class DashboardExtendedTest(TestCase):
         self.assertIn("top_failed_questions", resp.data)
         self.assertIsInstance(resp.data["heatmap_by_hour"], list)
         self.assertIsInstance(resp.data["top_failed_questions"], list)
+
+
+class SnapshotSanitizationTest(TestCase):
+    """The student-facing exam snapshot (state endpoint + student login) must never
+    expose correct answers."""
+
+    def _snapshot(self):
+        return {
+            "exam_title": "T",
+            "questions": [
+                {
+                    "question_id": "q1", "question_text": "Capital?",
+                    "question_type": "MULTIPLE_CHOICE", "order": 1, "points": 1.0,
+                    "metadata": {
+                        "options": [
+                            {"key": "A", "text": "Lima", "is_correct": True},
+                            {"key": "B", "text": "Cusco", "is_correct": False},
+                        ],
+                        "correct_keys": ["A"], "explanation": "Lima es la capital", "topic": "Geo",
+                    },
+                },
+                {
+                    "question_id": "q2", "question_text": "2+2=4?",
+                    "question_type": "TRUE_FALSE", "order": 2, "points": 1.0,
+                    "metadata": {"correct_answer": True, "explanation": "si"},
+                },
+                {
+                    "question_id": "q3", "question_text": "Define X",
+                    "question_type": "SHORT_ANSWER", "order": 3, "points": 1.0,
+                    "metadata": {"keywords": ["clave"], "case_sensitive": False, "strict_mode": True},
+                },
+                {
+                    "question_id": "q4", "question_text": "Multi",
+                    "question_type": "MULTIPLE_CHOICE", "order": 4, "points": 1.0,
+                    "metadata": {
+                        "options": [
+                            {"key": "A", "text": "a", "is_correct": True},
+                            {"key": "B", "text": "b", "is_correct": True},
+                        ],
+                        "correct_keys": ["A", "B"],
+                    },
+                },
+            ],
+        }
+
+    def test_sanitized_snapshot_hides_all_answer_fields(self):
+        from services.attempt_service import sanitize_snapshot_for_student
+        out = sanitize_snapshot_for_student(self._snapshot())
+        blob = json.dumps(out)
+        for leaked in ("is_correct", "correct_keys", "correct_answer", "keywords",
+                       "case_sensitive", "strict_mode", "explanation", "Lima es la capital"):
+            self.assertNotIn(leaked, blob, f"answer field leaked: {leaked}")
+
+    def test_sanitized_snapshot_keeps_display_data(self):
+        from services.attempt_service import sanitize_snapshot_for_student
+        out = sanitize_snapshot_for_student(self._snapshot())
+        q1 = out["questions"][0]
+        self.assertEqual(q1["question_text"], "Capital?")
+        self.assertEqual(
+            q1["metadata"]["options"],
+            [{"key": "A", "text": "Lima"}, {"key": "B", "text": "Cusco"}],
+        )
+        self.assertEqual(q1["metadata"].get("topic"), "Geo")
+        # Multi-answer questions keep a non-revealing "choose more than one" hint.
+        self.assertTrue(out["questions"][3]["metadata"].get("multiple"))
