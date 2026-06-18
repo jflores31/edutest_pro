@@ -39,18 +39,22 @@ class ExamEngine:
 
             snapshot = self._get_or_create_snapshot(exam)
             try:
-                attempt = Attempt.objects.create(
-                    organization=user.organization,
-                    user=user,
-                    exam=exam,
-                    snapshot=snapshot,
-                    status=Attempt.Status.IN_PROGRESS,
-                )
+                # Nested savepoint: if the unique constraint trips, only this
+                # savepoint is rolled back, leaving the outer transaction usable
+                # for the follow-up query (otherwise it would raise
+                # TransactionManagementError on a broken transaction).
+                with transaction.atomic():
+                    attempt = Attempt.objects.create(
+                        organization=user.organization,
+                        user=user,
+                        exam=exam,
+                        snapshot=snapshot,
+                        status=Attempt.Status.IN_PROGRESS,
+                    )
                 logger.info("Attempt created", extra={"attempt_id": str(attempt.id)})
                 return str(attempt.id)
             except IntegrityError:
-                # Race condition: another request created the attempt concurrently
-                transaction.set_rollback(True)
+                # Race condition: another request created the attempt concurrently.
                 existing = (
                     Attempt.objects
                     .filter(user=user, exam=exam, status=Attempt.Status.IN_PROGRESS)

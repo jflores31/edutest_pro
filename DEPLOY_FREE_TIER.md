@@ -26,9 +26,12 @@ detección de abandono es el comando `python manage.py detect_abandoned`.
 ## 1. Supabase (PostgreSQL)
 
 1. New project → copia la contraseña de la BD.
-2. Project Settings → Database → **Connection pooling** (modo *Transaction*):
-   host `...pooler.supabase.com`, puerto **6543**, usuario `postgres.<ref>`, db `postgres`.
-3. Guarda estos valores para `POSTGRES_*`.
+2. Project Settings → Database → **Connection pooling**. Para Render (servidor
+   persistente) usa el **Session pooler**: host `...pooler.supabase.com`, puerto **5432**,
+   usuario `postgres.<ref>`, db `postgres`. Soporta cursores y conexiones persistentes.
+   - Si en su lugar usas el **Transaction pooler (6543)**, además define
+     `DB_CONN_MAX_AGE=0` y `DB_DISABLE_SERVER_SIDE_CURSORS=True` (si no, Django falla en runtime).
+3. Guarda estos valores para `POSTGRES_*` y pon `POSTGRES_SSLMODE=require`.
 
 ## 2. Upstash (Redis)
 

@@ -108,6 +108,11 @@ _pg_sslmode = config("POSTGRES_SSLMODE", default="")
 if _pg_sslmode:
     DATABASES["default"]["OPTIONS"] = {"sslmode": _pg_sslmode}
 
+# Supabase's transaction pooler (port 6543, pgBouncer in transaction mode) does not
+# support server-side cursors or persistent connections. When using it, set
+# DB_DISABLE_SERVER_SIDE_CURSORS=True and DB_CONN_MAX_AGE=0.
+DISABLE_SERVER_SIDE_CURSORS = config("DB_DISABLE_SERVER_SIDE_CURSORS", default=False, cast=bool)
+
 # ── Cache / Redis ─────────────────────────────────────────────────────────────
 # django-redis backend: unlike Django's built-in RedisCache it supports
 # delete_pattern(), which the dashboard cache invalidation relies on.

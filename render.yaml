@@ -37,9 +37,11 @@ services:
       - key: POSTGRES_PASSWORD
         sync: false
       - key: POSTGRES_HOST
-        sync: false            # Supabase pooler host
+        sync: false            # Supabase session-pooler host (...pooler.supabase.com)
       - key: POSTGRES_PORT
-        value: "6543"          # Supabase transaction pooler port
+        value: "5432"          # Session pooler: persistent server, supports cursors.
+                               # If you must use the transaction pooler (6543), also set
+                               # DB_CONN_MAX_AGE=0 and DB_DISABLE_SERVER_SIDE_CURSORS=True.
       - key: POSTGRES_SSLMODE
         value: "require"
       - key: CACHE_URL

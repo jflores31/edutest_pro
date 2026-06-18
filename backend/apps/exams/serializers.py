@@ -415,7 +415,7 @@ class StudentProfileSerializer(StudentSerializer):
     def get_ranking(self, obj):
         from django.db.models import Avg
         course_avgs = (
-            Student.objects.filter(course=obj.course)
+            Student.objects.filter(course=obj.course, organization_id=obj.organization_id)
             .annotate(avg=Avg("attempts__score", filter=Q(attempts__status=Attempt.Status.COMPLETED)))
             .order_by("-avg")
             .values_list("id", flat=True)
@@ -455,9 +455,11 @@ class StudentProfileSerializer(StudentSerializer):
             )
         )
         for attempt in completed:
+            # Use the prefetched, already is_final-filtered saved_answers (a .filter()
+            # here would issue a fresh query per attempt and defeat the Prefetch above).
             answers = {
                 str(a.question_id): a.answer_data
-                for a in attempt.saved_answers.filter(is_final=True)
+                for a in attempt.saved_answers.all()
             }
             try:
                 result = engine.calculate_score(attempt.snapshot, answers)

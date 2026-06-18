@@ -423,16 +423,19 @@ class StudentLoginView(APIView):
                         )
                 snapshot = engine._get_or_create_snapshot(exam)
                 try:
-                    attempt = Attempt.objects.create(
-                        organization=exam.organization,
-                        user=guest_user,
-                        student=student,
-                        exam=exam,
-                        snapshot=snapshot,
-                        status=Attempt.Status.IN_PROGRESS,
-                    )
+                    # Nested savepoint so a unique-constraint race only rolls back
+                    # this insert, keeping the outer transaction usable for the
+                    # follow-up lookup (avoids TransactionManagementError).
+                    with transaction.atomic():
+                        attempt = Attempt.objects.create(
+                            organization=exam.organization,
+                            user=guest_user,
+                            student=student,
+                            exam=exam,
+                            snapshot=snapshot,
+                            status=Attempt.Status.IN_PROGRESS,
+                        )
                 except IntegrityError:
-                    transaction.set_rollback(True)
                     attempt = (
                         Attempt.objects
                         .filter(student=student, exam=exam, status=Attempt.Status.IN_PROGRESS)

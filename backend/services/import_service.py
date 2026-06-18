@@ -547,6 +547,7 @@ class ImportService:
 
     def _parse_xlsx(self, file: IO[bytes]) -> Iterator[dict[str, str]]:
         """Parsea un archivo XLSX usando openpyxl en modo read-only."""
+        wb = None
         try:
             wb = openpyxl.load_workbook(file, read_only=True, data_only=True)
             ws = wb.active
@@ -579,12 +580,15 @@ class ImportService:
                     continue
                 yield row_dict
 
-            wb.close()
-
         except openpyxl.utils.exceptions.InvalidFileException as exc:
             raise ImportFileFormatError(
                 f"El archivo XLSX está corrupto o no es válido: {exc}"
             ) from exc
+        finally:
+            # Close on every path — including an exception mid-iteration or the
+            # consumer abandoning the generator early — so the file handle never leaks.
+            if wb is not None:
+                wb.close()
 
     # ------------------------------------------------------------------
     # Validación de filas
