@@ -24,17 +24,27 @@ class ImportJobViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False, methods=["post"], url_path="upload")
     def upload(self, request):
-        """Upload a CSV/XLSX file for bulk question import."""
+        """Upload a CSV/XLSX file and import it synchronously.
+
+        Celery was removed; imports are bounded (≤10MB / ≤2000 rows) and run inline.
+        Processing in-request also means the file only needs to survive the request,
+        which is safe on platforms with ephemeral disks (Render).
+        """
+        import uuid as uuid_mod
+
         file = request.FILES.get("file")
         if not file:
             return Response({"error": "No file provided."}, status=status.HTTP_400_BAD_REQUEST)
 
         from django.conf import settings
-        from tasks.import_tasks import process_import_task
+        from tasks.import_tasks import process_import
+        from services.exceptions import EduTestError
 
         upload_dir = os.path.join(settings.MEDIA_ROOT, "imports")
         os.makedirs(upload_dir, exist_ok=True)
-        file_path = os.path.join(upload_dir, os.path.basename(file.name))
+        # Unique filename so concurrent uploads with the same name don't overwrite.
+        safe_name = f"{uuid_mod.uuid4().hex}_{os.path.basename(file.name)}"
+        file_path = os.path.join(upload_dir, safe_name)
         with open(file_path, "wb") as f:
             for chunk in file.chunks():
                 f.write(chunk)
@@ -45,11 +55,26 @@ class ImportJobViewSet(viewsets.ReadOnlyModelViewSet):
             file_name=file.name,
             file_path=file_path,
         )
-        task = process_import_task.delay(str(job.id))
-        job.celery_task_id = task.id
-        job.save(update_fields=["celery_task_id"])
 
-        return Response(ImportJobSerializer(job).data, status=status.HTTP_202_ACCEPTED)
+        try:
+            process_import(str(job.id))
+        except EduTestError as exc:
+            job.refresh_from_db()
+            return Response(
+                {**exc.to_dict(), "job": ImportJobSerializer(job).data},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        except Exception:
+            logger.exception("Import failed", extra={"job_id": str(job.id)})
+            job.refresh_from_db()
+            return Response(
+                {"error": "Error interno al importar. Intenta nuevamente.",
+                 "job": ImportJobSerializer(job).data},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        job.refresh_from_db()
+        return Response(ImportJobSerializer(job).data, status=status.HTTP_201_CREATED)
 
 
 class ImportPreviewView(APIView):

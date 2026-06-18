@@ -34,6 +34,12 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = config("SECURE_HSTS_INCLUDE_SUBDOMAINS", defaul
 SESSION_COOKIE_SECURE = config("SESSION_COOKIE_SECURE", default=False, cast=bool)
 CSRF_COOKIE_SECURE = config("CSRF_COOKIE_SECURE", default=False, cast=bool)
 
+# Behind a TLS-terminating proxy (Render, Nginx, etc.) request.is_secure() is False
+# unless we trust the X-Forwarded-Proto header. Required for auth cookies to get the
+# Secure flag in production. Enable via SECURE_PROXY_SSL_HEADER=True on the platform.
+if config("SECURE_PROXY_SSL_HEADER", default=False, cast=bool):
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
 # ── Applications ──────────────────────────────────────────────────────────────
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -47,7 +53,6 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
-    "django_celery_beat",
     # Local
     "apps.exams",
 ]
@@ -94,15 +99,25 @@ DATABASES = {
         "PASSWORD": config("POSTGRES_PASSWORD"),
         "HOST": config("POSTGRES_HOST", default="postgres"),
         "PORT": config("POSTGRES_PORT", default="5432"),
-        "CONN_MAX_AGE": 60,
+        "CONN_MAX_AGE": config("DB_CONN_MAX_AGE", default=60, cast=int),
     }
 }
 
+# Managed Postgres (Supabase) requires SSL. Set POSTGRES_SSLMODE=require in production.
+_pg_sslmode = config("POSTGRES_SSLMODE", default="")
+if _pg_sslmode:
+    DATABASES["default"]["OPTIONS"] = {"sslmode": _pg_sslmode}
+
 # ── Cache / Redis ─────────────────────────────────────────────────────────────
+# django-redis backend: unlike Django's built-in RedisCache it supports
+# delete_pattern(), which the dashboard cache invalidation relies on.
 CACHES = {
     "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": config("CACHE_URL"),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
     }
 }
 
@@ -157,15 +172,6 @@ CORS_ALLOWED_ORIGINS = [h.strip() for h in config(
 ).split(",") if h.strip()]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = False
-
-# ── Celery ────────────────────────────────────────────────────────────────────
-CELERY_BROKER_URL = config("CELERY_BROKER_URL")
-CELERY_RESULT_BACKEND = config("CELERY_RESULT_BACKEND")
-CELERY_TASK_SERIALIZER = "json"
-CELERY_RESULT_SERIALIZER = "json"
-CELERY_ACCEPT_CONTENT = ["json"]
-CELERY_TIMEZONE = "America/Lima"
-CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
 # ── Static & Media ────────────────────────────────────────────────────────────
 STATIC_URL = "/static/"

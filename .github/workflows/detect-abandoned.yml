@@ -1,0 +1,36 @@
+name: detect-abandoned-attempts
+
+# Replaces the old Celery Beat periodic task. Runs the Django management command
+# directly against Supabase (Postgres) and Upstash (Redis), both internet-reachable.
+# GitHub Actions cron is free. Schedule is approximate (GitHub may delay a few min).
+on:
+  schedule:
+    - cron: "*/10 * * * *"   # every 10 minutes
+  workflow_dispatch: {}        # allow manual runs from the Actions tab
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Run abandonment detection
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          DEBUG: "False"
+          ALLOWED_HOSTS: "localhost"
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
+          POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
+          POSTGRES_SSLMODE: require
+          CACHE_URL: ${{ secrets.CACHE_URL }}
+        run: python manage.py detect_abandoned

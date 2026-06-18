@@ -382,7 +382,10 @@ class DashboardLiveView(APIView):
 
         latest_attempts = []
         for att in latest:
-            total = len(att.snapshot.snapshot_data.get("questions", []))
+            # An IN_PROGRESS attempt should always have a snapshot, but guard against
+            # a null/missing one rather than raising a 500 on the live dashboard.
+            snapshot_data = att.snapshot.snapshot_data if att.snapshot_id else {}
+            total = len(snapshot_data.get("questions", []))
             answered = att.saved_answers_count
             name = (
                 f"{att.student.first_name} {att.student.last_name}"

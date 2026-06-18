@@ -440,7 +440,8 @@ class ExamViewSet(viewsets.ModelViewSet):
             buckets = [0, 5, 8, 11, 15, 20]
             distribution = []
             for low, high in zip(buckets, buckets[1:]):
-                if high == 100:
+                # Final bucket is inclusive so a perfect score (20) is counted.
+                if high == buckets[-1]:
                     cnt = completed.filter(score__gte=low, score__lte=high).count()
                 else:
                     cnt = completed.filter(score__gte=low, score__lt=high).count()

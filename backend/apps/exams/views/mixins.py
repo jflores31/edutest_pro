@@ -49,13 +49,16 @@ def _rate_limit(request, key_prefix, limit=5, timeout=300):
     ip = _client_ip(request)
     cache_key = f"edutest:rate:{key_prefix}:{ip}"
     try:
-        attempts = cache.get(cache_key, 0)
-        if attempts >= limit:
-            return False
-        cache.set(cache_key, attempts + 1, timeout=timeout)
+        # Atomic counter: add() starts the window only if absent, incr() is a single
+        # Redis INCR — no check-then-set race under concurrency.
+        cache.add(cache_key, 0, timeout=timeout)
+        current = cache.incr(cache_key)
+        return current <= limit
     except Exception:
-        logger.warning("Redis unavailable during rate limiting; allowing request")
-    return True
+        # Fail closed: these guard login/register/password-reset. If Redis is down we
+        # deny rather than silently disabling brute-force protection.
+        logger.warning("Redis unavailable during rate limiting; denying request")
+        return False
 
 
 def _revoke_student_token(request):

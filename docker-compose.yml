@@ -62,35 +62,9 @@ services:
       retries: 3
       start_period: 60s
 
-  celery:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: edutest_celery
-    restart: unless-stopped
-    command: celery -A config.celery worker --loglevel=info --concurrency=2
-    env_file: .env
-    volumes:
-      - media_files:/app/media
-    depends_on:
-      backend:
-        condition: service_healthy
-    networks:
-      - backend_net
-
-  celery-beat:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: edutest_celery_beat
-    restart: unless-stopped
-    command: celery -A config.celery beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
-    env_file: .env
-    depends_on:
-      backend:
-        condition: service_healthy
-    networks:
-      - backend_net
+  # Celery has been removed. Imports run synchronously in-request; periodic
+  # abandonment detection runs via `python manage.py detect_abandoned`
+  # (scheduled by GitHub Actions in production, or a local cron during dev).
 
   frontend:
     build:
