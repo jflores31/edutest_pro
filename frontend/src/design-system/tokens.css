@@ -1,0 +1,39 @@
+/* EduTest Pro — design tokens. Theme switches via <html data-theme="light|dark">. */
+:root,
+[data-theme="dark"] {
+  --bg-0: #0b0f17;
+  --bg-1: #121826;
+  --bg-2: #1b2334;
+  --fg-0: #f3f6fc;
+  --fg-1: #c2cbdb;
+  --fg-2: #8995ab;
+  --line: #283248;
+
+  --accent: #5b8cff;
+  --accent-fg: #ffffff;
+  --ok: #34d399;
+  --warn: #fbbf24;
+  --danger: #f87171;
+
+  --radius: 12px;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="light"] {
+  --bg-0: #f5f7fb;
+  --bg-1: #ffffff;
+  --bg-2: #eef2f9;
+  --fg-0: #0d1320;
+  --fg-1: #3a455a;
+  --fg-2: #6b7689;
+  --line: #dce3ef;
+
+  --accent: #2f6bff;
+  --accent-fg: #ffffff;
+  --ok: #059669;
+  --warn: #d97706;
+  --danger: #dc2626;
+
+  --radius: 12px;
+  --shadow: 0 6px 20px rgba(20, 30, 60, 0.10);
+}
