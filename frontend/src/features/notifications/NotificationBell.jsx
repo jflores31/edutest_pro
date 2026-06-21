@@ -25,19 +25,23 @@ function timeAgo(isoStr) {
 export default function NotificationBell() {
   const [items, setItems] = useState([]);
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const wrapperRef = useRef(null);
-  const lastSeen = useRef(localStorage.getItem(LAST_SEEN_KEY) || new Date(0).toISOString());
+  const [lastSeen, setLastSeen] = useState(
+    () => localStorage.getItem(LAST_SEEN_KEY) || new Date(0).toISOString()
+  );
 
   const fetchNotifs = useCallback(async () => {
-    setLoading(true);
     try {
       const data = await notificationsApi.list();
       setItems(Array.isArray(data) ? data : []);
-    } catch {}
+    } catch {
+      /* notifications are non-critical; ignore fetch errors */
+    }
     setLoading(false);
   }, []);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional synchronous state update in this effect
   useEffect(() => { fetchNotifs(); }, [fetchNotifs]);
 
   // Close on outside click
@@ -50,13 +54,13 @@ export default function NotificationBell() {
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  const unread = items.filter(n => n.created_at > lastSeen.current).length;
+  const unread = items.filter(n => n.created_at > lastSeen).length;
 
   function handleOpen() {
     if (!open) {
       const now = new Date().toISOString();
       localStorage.setItem(LAST_SEEN_KEY, now);
-      lastSeen.current = now;
+      setLastSeen(now);
     }
     setOpen(v => !v);
   }

@@ -139,7 +139,7 @@ async function request(path, options = {}) {
   } catch (err) {
     clearTimeout(timeoutId);
     if (err.name === 'AbortError') {
-      throw new Error('La solicitud tardó demasiado. Verifica tu conexión.');
+      throw new Error('La solicitud tardó demasiado. Verifica tu conexión.', { cause: err });
     }
     throw err;
   }
@@ -233,7 +233,7 @@ async function upload(path, formData) {
   } catch (err) {
     clearTimeout(timeoutId);
     if (err.name === 'AbortError') {
-      throw new Error('La subida tardó demasiado. Intenta con un archivo más pequeño.');
+      throw new Error('La subida tardó demasiado. Intenta con un archivo más pequeño.', { cause: err });
     }
     throw err;
   }

@@ -28,6 +28,7 @@ export default function AttemptDetailPage() {
 
   useEffect(() => {
     let alive = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional synchronous state update in this effect
     setLoading(true);
     attempts.detail(id)
       .then(data => { if (alive) setAttempt(data); })

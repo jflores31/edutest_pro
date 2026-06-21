@@ -40,15 +40,14 @@ export function DonutChart({ data = [], size = 160, thickness = 22 }) {
   const total = data.reduce((s, d) => s + d.value, 0) || 1
   const r = (size - thickness) / 2
   const cir = 2 * Math.PI * r
-  let offset = 0
   return (
     <div className="flex items-center gap-4">
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
           {data.map((d, i) => {
-            const frac = d.value / total
-            const dash = frac * cir
-            const seg = (
+            const dash = (d.value / total) * cir
+            const offset = data.slice(0, i).reduce((s, dd) => s + (dd.value / total) * cir, 0)
+            return (
               <circle
                 key={i}
                 cx={size / 2} cy={size / 2} r={r}
@@ -59,8 +58,6 @@ export function DonutChart({ data = [], size = 160, thickness = 22 }) {
                 strokeDashoffset={-offset}
               />
             )
-            offset += dash
-            return seg
           })}
         </g>
         <text x="50%" y="50%" textAnchor="middle" dominantBaseline="central" style={{ fill: 'var(--fg-0)', fontSize: 20, fontWeight: 600 }}>

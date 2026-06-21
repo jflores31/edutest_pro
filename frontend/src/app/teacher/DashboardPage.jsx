@@ -10,6 +10,11 @@ import { dashboard as dashboardApi, courses as coursesApi } from '../../services
 import { KPICard, DonutSkeleton, BarSkeleton, ErrorBanner, LiveBanner, MobileAttemptCard, EmptyBanner, QuickActions } from '../../features/dashboard';
 import { PERIODS, STATUS_COLORS, AVATAR_COLORS, buildHeatmapMatrix, buildHistogram, buildBarData, buildDonut, getAttemptVariant, formatDuration, formatRelative } from '../../utils/dashboard';
 
+function SortIcon({ col, sort }) {
+  if (sort.col !== col) return <span className="text-fg-3 ml-1">↕</span>;
+  return <span className="text-accent ml-1">{sort.dir === 'desc' ? '↓' : '↑'}</span>;
+}
+
 export default function DashboardPage() {
   const navigate = useNavigate();
   const [period, setPeriod] = useState('30d');
@@ -33,6 +38,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     let alive = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional synchronous state update in this effect
     setStatsLoading(true);
     setStatsError('');
     dashboardApi.stats(period, courseId)
@@ -72,11 +78,6 @@ export default function DashboardPage() {
     setSort(prev => ({ col, dir: prev.col === col && prev.dir === 'desc' ? 'asc' : 'desc' }));
   };
 
-  const SortIcon = ({ col }) => {
-    if (sort.col !== col) return <span className="text-fg-3 ml-1">↕</span>;
-    return <span className="text-accent ml-1">{sort.dir === 'desc' ? '↓' : '↑'}</span>;
-  };
-
   const { matrix: heatmapMatrix, hours: heatmapHours } = useMemo(
     () => buildHeatmapMatrix(stats?.heatmap_by_hour), [stats],
   );
@@ -114,7 +115,7 @@ export default function DashboardPage() {
     const rows = sortedAttempts.map(a =>
       [a.user_name, a.exam, a.score ?? '', a.status, a.date].map(csvField).join(',')
     ).join('\n');
-    const blob = new Blob([`﻿${header}\n${rows}`], { type: 'text/csv;charset=utf-8' });
+    const blob = new Blob([`\uFEFF${header}\n${rows}`], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const el = document.createElement('a');
     el.href = url; el.download = 'intentos.csv'; el.click();
@@ -268,20 +269,20 @@ export default function DashboardPage() {
                       className="text-left text-xs text-fg-3 font-semibold uppercase tracking-wider px-5 py-3.5 cursor-pointer hover:text-fg-0 select-none"
                       onClick={() => handleSort('score')}
                     >
-                      Nota <SortIcon col="score" />
+                      Nota <SortIcon col="score" sort={sort} />
                     </th>
                     <th className="text-left text-xs text-fg-3 font-semibold uppercase tracking-wider px-5 py-3.5">Progreso</th>
                     <th
                       className="text-left text-xs text-fg-3 font-semibold uppercase tracking-wider px-5 py-3.5 cursor-pointer hover:text-fg-0 select-none"
                       onClick={() => handleSort('duration')}
                     >
-                      Duración <SortIcon col="duration" />
+                      Duración <SortIcon col="duration" sort={sort} />
                     </th>
                     <th
                       className="text-left text-xs text-fg-3 font-semibold uppercase tracking-wider px-5 py-3.5 cursor-pointer hover:text-fg-0 select-none"
                       onClick={() => handleSort('date')}
                     >
-                      Fecha <SortIcon col="date" />
+                      Fecha <SortIcon col="date" sort={sort} />
                     </th>
                     <th className="w-10" />
                   </tr>

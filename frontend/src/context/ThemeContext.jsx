@@ -38,6 +38,7 @@ export function ThemeProvider({ children }) {
   // Sincronizar tema inicial con el DOM (ya lo hizo el script inline, pero por si acaso)
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- deps intentionally constrained
   }, []);
 
   // Escuchar cambios de tema desde otras pestañas
@@ -63,6 +64,7 @@ export function ThemeProvider({ children }) {
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useTheme() {
   const ctx = useContext(ThemeContext);
   if (!ctx) throw new Error('useTheme debe usarse dentro de ThemeProvider');

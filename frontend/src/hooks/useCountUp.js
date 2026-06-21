@@ -4,7 +4,8 @@ export function useCountUp(target, { duration = 600, decimals = 0 } = {}) {
   const [value, setValue] = useState(0);
   const num = Number(target) || 0;
   useEffect(() => {
-    if (num === 0) { setValue(0); return; }
+    // num === 0 is handled by the RAF tick below (it resolves to 0 on the first
+    // frame), so we avoid a synchronous setState in the effect body.
     const start = Date.now();
     const easeOut = t => 1 - Math.pow(1 - t, 3);
     const factor = Math.pow(10, decimals);

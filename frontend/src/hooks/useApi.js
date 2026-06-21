@@ -43,6 +43,7 @@ export function useApi(fetchFn, deps = [], options = {}) {
   useEffect(() => {
     mountedRef.current = true;
     if (immediate) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional synchronous state update in this effect
       execute();
     }
     return () => {
@@ -51,6 +52,7 @@ export function useApi(fetchFn, deps = [], options = {}) {
         abortControllerRef.current.abort();
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- deps intentionally constrained
   }, deps);
 
   const cancel = useCallback(() => {

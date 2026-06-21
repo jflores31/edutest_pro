@@ -1,21 +1,20 @@
 /**
  * useMediaQuery.js — Hook para detectar media queries
+ * Usa useSyncExternalStore: el patrón idiomático para suscribirse a un store
+ * externo (matchMedia) sin setState dentro de un efecto.
  */
-import { useState, useEffect } from 'react';
+import { useSyncExternalStore } from 'react';
 
 export function useMediaQuery(query) {
-  const [matches, setMatches] = useState(false);
-
-  useEffect(() => {
-    const media = window.matchMedia(query);
-    setMatches(media.matches);
-
-    const handler = (e) => setMatches(e.matches);
-    media.addEventListener('change', handler);
-    return () => media.removeEventListener('change', handler);
-  }, [query]);
-
-  return matches;
+  return useSyncExternalStore(
+    (onChange) => {
+      const media = window.matchMedia(query);
+      media.addEventListener('change', onChange);
+      return () => media.removeEventListener('change', onChange);
+    },
+    () => window.matchMedia(query).matches,
+    () => false, // SSR/initial fallback
+  );
 }
 
 export function useIsMobile() {

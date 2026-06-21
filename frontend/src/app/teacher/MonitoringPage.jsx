@@ -89,6 +89,7 @@ export default function MonitoringPage() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional synchronous state update in this effect
     load();
   }, [load]);
 

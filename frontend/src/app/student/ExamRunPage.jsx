@@ -181,8 +181,9 @@ export default function ExamRunPage() {
   useEffect(() => {
     if (timed && expired && !expiredFinishRef.current) {
       expiredFinishRef.current = true;
-      doFinish(true);
+      doFinish();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- deps intentionally constrained
   }, [timed, expired]);
 
   // ── Heartbeat ─────────────────────────────────────────────────────────────
@@ -271,7 +272,7 @@ export default function ExamRunPage() {
     setShowFinishConfirm(false);
   }
 
-  async function doFinish(auto = false) {
+  async function doFinish() {
     setShowFinishConfirm(false);
     setFinishing(true);
     try {
@@ -512,7 +513,7 @@ export default function ExamRunPage() {
                 className="px-4 py-2 text-sm font-medium text-fg-1 hover:bg-bg-2 rounded-xl transition-colors">
                 Cancelar
               </button>
-              <button onClick={() => doFinish(false)} disabled={finishing}
+              <button onClick={() => doFinish()} disabled={finishing}
                 className="px-4 py-2 text-sm font-medium bg-accent text-bg-1 rounded-xl hover:bg-accent-hover disabled:opacity-60 transition">
                 {finishing ? 'Finalizando…' : 'Sí, entregar examen'}
               </button>

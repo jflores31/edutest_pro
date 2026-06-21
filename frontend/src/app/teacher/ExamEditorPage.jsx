@@ -10,6 +10,11 @@ import { useToast } from '../../features/toast/ToastProvider';
 import { exams as examsApi, questions as questionsApi } from '../../services/api';
 import { ConfirmModal } from '../../features/shared/ConfirmModal';
 
+// Module-level counter for unique element ids. Avoids Date.now() collisions
+// when several ids are generated within the same millisecond (e.g. two options).
+let _uidCounter = 0;
+const uid = (prefix) => `${prefix}-${++_uidCounter}`;
+
 const QUESTION_TYPES = [
   { key: 'single_choice', label: 'Opción múltiple', icon: 'check' },
   { key: 'multiple_choice', label: 'Selección múltiple', icon: 'check' },
@@ -85,7 +90,7 @@ function QuestionEditor({ question, index, onUpdate, onDelete }) {
 
   const addOption = () => {
     const options = question.options || [];
-    onUpdate({ ...question, options: [...options, { id: `opt-${Date.now()}`, text: '' }] });
+    onUpdate({ ...question, options: [...options, { id: uid('opt'), text: '' }] });
   };
 
   const updateOption = (optId, text) => {
@@ -258,6 +263,7 @@ export default function ExamEditorPage() {
 
   // Mark dirty on any exam change
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional synchronous state update in this effect
     if (!loadingExam) setDirty(true);
   }, [exam, loadingExam]);
 
@@ -287,6 +293,7 @@ export default function ExamEditorPage() {
   useEffect(() => {
     if (!isEditing) return;
     let alive = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional synchronous state update in this effect
     setLoadingExam(true);
     examsApi.get(id)
       .then(data => {
@@ -306,15 +313,16 @@ export default function ExamEditorPage() {
       .catch(e => { if (alive) toast.error(`Error al cargar el examen: ${e.message}`); })
       .finally(() => { if (alive) setLoadingExam(false); });
     return () => { alive = false; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- deps intentionally constrained
   }, [id, isEditing]);
 
   const addQuestion = (type) => {
     const newQ = {
-      id: `q-${Date.now()}`,
+      id: uid('q'),
       type,
       text: '',
       options: type === 'single_choice' || type === 'multiple_choice'
-        ? [{ id: `opt-${Date.now()}-1`, text: '' }, { id: `opt-${Date.now()}-2`, text: '' }]
+        ? [{ id: uid('opt'), text: '' }, { id: uid('opt'), text: '' }]
         : undefined,
       correct: type === 'boolean' ? true : null,
       correctKey: type === 'single_choice' || type === 'multiple_choice' ? 'A' : null,

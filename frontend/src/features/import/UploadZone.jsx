@@ -1,10 +1,9 @@
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { Icon, Badge } from '../../design-system';
 
 export default function UploadZone({ onFile, error }) {
   const inputRef = useRef(null);
   const dragCountRef = useRef(0);
-  const [dragOver, setDragOver] = useState(false);
 
   function handleDragEnter(e) {
     e.preventDefault();

@@ -17,6 +17,7 @@ export default function ExamCard({ exam, onCopyLink, onEdit, onDelete, onArchive
   const status = STATUS_MAP[exam.status] || STATUS_MAP.draft;
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional synchronous state update in this effect
     setShowNota(exam.showNota);
     setShowResp(exam.showResp);
     setShowExpl(exam.showExpl);

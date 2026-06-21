@@ -1,16 +1,10 @@
 import { useState, useMemo, useRef } from 'react';
-import { Button, Icon, Badge } from '../../design-system';
+import { Button, Icon } from '../../design-system';
 
 const QTYPE_LABELS = {
   MULTIPLE_CHOICE: 'Opción múltiple',
   BOOLEAN: 'Verdadero / Falso',
   SHORT_ANSWER: 'Respuesta corta',
-};
-
-const QTYPE_BADGE = {
-  MULTIPLE_CHOICE: 'neutral',
-  BOOLEAN: 'warning',
-  SHORT_ANSWER: 'info',
 };
 
 const FILTER_OPTIONS = [
@@ -135,6 +129,7 @@ function AnswerSelector({ row, onChange }) {
 
 function QuestionCard({ row, index, dispatch }) {
   const [expanded, setExpanded] = useState(row._isNew || row._errors.length > 0);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   function update(patch) {
     dispatch({ type: 'UPDATE_ROW', payload: { id: row._id, patch } });
@@ -202,16 +197,16 @@ function QuestionCard({ row, index, dispatch }) {
             className="p-1.5 rounded-xl text-fg-3 hover:text-danger hover:bg-danger/10 transition-colors"
             title="Eliminar"
             onClick={() => {
-              if (deleteConfirmId === row._id) {
+              if (confirmDelete) {
                 dispatch({ type: 'DELETE_ROW', payload: { id: row._id } });
-                setDeleteConfirmId(null);
+                setConfirmDelete(false);
               } else {
-                setDeleteConfirmId(row._id);
-                setTimeout(() => setDeleteConfirmId(prev => prev === row._id ? null : prev), 3000);
+                setConfirmDelete(true);
+                setTimeout(() => setConfirmDelete(false), 3000);
               }
             }}
           >
-            {deleteConfirmId === row._id ? (
+            {confirmDelete ? (
               <span className="text-xs text-danger font-medium">¿?</span>
             ) : (
               <Icon name="trash" size={14} />
@@ -338,7 +333,6 @@ export default function PreviewEditor({ state, dispatch, onConfirm }) {
   const { draftRows, search, filterType, currentPage, pageSize } = state;
   const debounceRef = useRef(null);
   const [localSearch, setLocalSearch] = useState('');
-  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
   function handleSearch(val) {
     setLocalSearch(val);

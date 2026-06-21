@@ -3,7 +3,7 @@
  * Conectado al API real: GET /api/v1/exams/ para lista,
  * GET /api/v1/exams/compare/?ids=... para datos comparativos
  */
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { PageHead } from '../../layout';
 import { Icon, Card, Input, Skeleton } from '../../design-system';
 import { BarChart } from '../../features/charts';
@@ -22,7 +22,6 @@ export default function ComparePage() {
 
   useEffect(() => {
     let alive = true;
-    setLoading(true);
     examsApi.list({ include_archived: true })
       .then(data => {
         if (!alive) return;
@@ -37,12 +36,9 @@ export default function ComparePage() {
   }, []);
 
   useEffect(() => {
-    if (selected.size < 2) {
-      setCompareData([]);
-      return;
-    }
+    if (selected.size < 2) return;   // barData derives to [] below; nothing to fetch
     let alive = true;
-    compareAbortRef.current = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional synchronous state update in this effect
     setCompareLoading(true);
     examsApi.compare([...selected])
       .then(data => { if (alive) setCompareData(Array.isArray(data) ? data : []); })
@@ -65,7 +61,7 @@ export default function ComparePage() {
     return exams.filter(e => e.title.toLowerCase().includes(search.toLowerCase()));
   }, [exams, search]);
 
-  const barData = compareData.map(e => ({
+  const barData = (selected.size < 2 ? [] : compareData).map(e => ({
     label: e.exam_title?.length > 20 ? e.exam_title.slice(0, 18) + '\u2026' : e.exam_title,
     value: e.avg_score != null ? Math.round(e.avg_score * 10) / 10 : 0,
   }));

@@ -1,5 +1,6 @@
 import { Loader2 } from 'lucide-react'
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const cx = (...c) => c.filter(Boolean).join(' ')
 
 export function Button({ variant = 'primary', size = 'md', loading, disabled, className, children, ...props }) {

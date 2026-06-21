@@ -18,6 +18,15 @@ export default function DonutChart({ pass = 0, fail = 0, abandoned = 0, onSegmen
 
   const total = pass + fail + abandoned;
 
+  const segments = useMemo(() => {
+    if (total === 0) return [];
+    return [
+      { key: 'pass', label: 'Aprobados', value: pass, color: COLORS.pass, pct: Math.round((pass / total) * 100) },
+      { key: 'fail', label: 'Reprobados', value: fail, color: COLORS.fail, pct: Math.round((fail / total) * 100) },
+      { key: 'abandoned', label: 'Abandonados', value: abandoned, color: COLORS.abandoned, pct: Math.round((abandoned / total) * 100) },
+    ].filter(s => s.value > 0);
+  }, [pass, fail, abandoned, total]);
+
   if (total === 0) {
     return (
       <div className="flex items-center justify-center gap-8 py-2">
@@ -38,15 +47,6 @@ export default function DonutChart({ pass = 0, fail = 0, abandoned = 0, onSegmen
       </div>
     );
   }
-  const segments = useMemo(() => {
-    if (total === 0) return [];
-    return [
-      { key: 'pass', label: 'Aprobados', value: pass, color: COLORS.pass, pct: Math.round((pass / total) * 100) },
-      { key: 'fail', label: 'Reprobados', value: fail, color: COLORS.fail, pct: Math.round((fail / total) * 100) },
-      { key: 'abandoned', label: 'Abandonados', value: abandoned, color: COLORS.abandoned, pct: Math.round((abandoned / total) * 100) },
-    ].filter(s => s.value > 0);
-  }, [pass, fail, abandoned, total]);
-
   const r = 56;
   const c = 2 * Math.PI * r;
   let offset = c / 4;

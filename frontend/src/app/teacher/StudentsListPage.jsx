@@ -127,6 +127,7 @@ export default function StudentsListPage() {
     }
   }, []);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional synchronous state update in this effect
   useEffect(() => { load(); }, [load]);
 
   async function saveEdit(data) {

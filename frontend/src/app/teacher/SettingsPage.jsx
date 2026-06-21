@@ -275,7 +275,7 @@ function IntegrationsTab() {
     try {
       await integrationsApi.toggle(key);
       setIntegrations(prev => prev.map(int => int.key === key ? { ...int, connected: !int.connected } : int));
-    } catch {}
+    } catch { /* toggle failed; leave state unchanged */ }
     setToggling('');
   };
 
@@ -446,7 +446,7 @@ function TemplatesTab() {
         <ConfirmModal
           title="Eliminar plantilla"
           message={`¿Eliminar "${deleteTarget.name}"? Esta acción no se puede deshacer.`}
-          onConfirm={async () => { try { await templatesApi.delete(deleteTarget.id); setTemplates(prev => prev.filter(t => t.id !== deleteTarget.id)); } catch {} setDeleteTarget(null); }}
+          onConfirm={async () => { try { await templatesApi.delete(deleteTarget.id); setTemplates(prev => prev.filter(t => t.id !== deleteTarget.id)); } catch { /* ignore */ } setDeleteTarget(null); }}
           onCancel={() => setDeleteTarget(null)}
         />
       )}

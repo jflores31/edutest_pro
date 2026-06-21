@@ -65,6 +65,7 @@ export default function StudentProfilePage() {
 
   useEffect(() => {
     let alive = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional synchronous state update in this effect
     setLoading(true);
     setError('');
     studentsApi.profile(id)
