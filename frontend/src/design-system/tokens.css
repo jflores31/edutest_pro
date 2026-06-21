@@ -1,39 +1,194 @@
-/* EduTest Pro — design tokens. Theme switches via <html data-theme="light|dark">. */
-:root,
-[data-theme="dark"] {
-  --bg-0: #0b0f17;
-  --bg-1: #121826;
-  --bg-2: #1b2334;
-  --fg-0: #f3f6fc;
-  --fg-1: #c2cbdb;
-  --fg-2: #8995ab;
-  --line: #283248;
+/**
+ * EduTest Pro — Design Tokens (Material Design 3 / Slate)
+ * Tema dual: light y dark via data-theme attribute en <html>
+ */
 
-  --accent: #5b8cff;
-  --accent-fg: #ffffff;
-  --ok: #34d399;
-  --warn: #fbbf24;
-  --danger: #f87171;
+/* ─── Light Theme ──────────────────────────────────────── */
+html[data-theme="light"] {
+  /* Fondos (de más claro a más oscuro) */
+  --color-bg: #f8fafc;
+  --color-bg-1: #ffffff;
+  --color-bg-2: #f1f5f9;
+  --color-bg-3: #e2e8f0;
 
-  --radius: 12px;
-  --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  /* Texto (de más prominente a más sutil) */
+  --color-fg-0: #0f172a;
+  --color-fg-1: #334155;
+  --color-fg-2: #64748b;
+  --color-fg-3: #94a3b8;
+
+  /* Estructura */
+  --color-line: #e2e8f0;
+
+  /* Marca — Slate-700 */
+  --color-accent: #334155;
+  --color-accent-soft: rgba(51, 65, 85, 0.08);
+  --color-accent-hover: #1e293b;
+
+  /* Estado */
+  --color-ok: #16a34a;
+  --color-ok-soft: rgba(22, 163, 74, 0.08);
+  --color-warn: #d97706;
+  --color-warn-soft: rgba(217, 119, 6, 0.08);
+  --color-danger: #dc2626;
+  --color-danger-soft: rgba(220, 38, 38, 0.08);
+
+  /* Sombras — más visibles en light */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-pop: 0 10px 25px rgba(0, 0, 0, 0.1), 0 4px 10px rgba(0, 0, 0, 0.05);
+  --shadow-focus: 0 0 0 3px rgba(51, 65, 85, 0.2);
+
+  /* Scrollbar */
+  --scrollbar-track: #f1f5f9;
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-thumb-hover: #94a3b8;
 }
 
-[data-theme="light"] {
-  --bg-0: #f5f7fb;
-  --bg-1: #ffffff;
-  --bg-2: #eef2f9;
-  --fg-0: #0d1320;
-  --fg-1: #3a455a;
-  --fg-2: #6b7689;
-  --line: #dce3ef;
+/* ─── Dark Theme ───────────────────────────────────────── */
+html[data-theme="dark"] {
+  /* Fondos (de más oscuro a más claro) */
+  --color-bg: #0c1017;
+  --color-bg-1: #131820;
+  --color-bg-2: #1a2030;
+  --color-bg-3: #243044;
 
-  --accent: #2f6bff;
-  --accent-fg: #ffffff;
-  --ok: #059669;
-  --warn: #d97706;
-  --danger: #dc2626;
+  /* Texto (de más prominente a más sutil) */
+  --color-fg-0: #f1f5f9;
+  --color-fg-1: #cbd5e1;
+  --color-fg-2: #64748b;
+  --color-fg-3: #475569;
 
-  --radius: 12px;
-  --shadow: 0 6px 20px rgba(20, 30, 60, 0.10);
+  /* Estructura */
+  --color-line: #1e293b;
+
+  /* Marca — Slate-400 (más claro para legibilidad en dark) */
+  --color-accent: #94a3b8;
+  --color-accent-soft: rgba(148, 163, 184, 0.1);
+  --color-accent-hover: #cbd5e1;
+
+  /* Estado */
+  --color-ok: #4ade80;
+  --color-ok-soft: rgba(74, 222, 128, 0.1);
+  --color-warn: #f59e0b;
+  --color-warn-soft: rgba(245, 158, 11, 0.1);
+  --color-danger: #f87171;
+  --color-danger-soft: rgba(248, 113, 113, 0.1);
+
+  /* Sombras */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-pop: 0 8px 28px rgba(0, 0, 0, 0.5);
+  --shadow-focus: 0 0 0 3px rgba(148, 163, 184, 0.25);
+
+  /* Scrollbar */
+  --scrollbar-track: #0c1017;
+  --scrollbar-thumb: #1a2030;
+  --scrollbar-thumb-hover: #243044;
+}
+
+/* ─── Theme Registration (Tailwind v4) ─────────────────── */
+@theme {
+  /* Fondos */
+  --color-bg: var(--color-bg);
+  --color-bg-1: var(--color-bg-1);
+  --color-bg-2: var(--color-bg-2);
+  --color-bg-3: var(--color-bg-3);
+
+  /* Texto */
+  --color-fg-0: var(--color-fg-0);
+  --color-fg-1: var(--color-fg-1);
+  --color-fg-2: var(--color-fg-2);
+  --color-fg-3: var(--color-fg-3);
+
+  /* Estructura */
+  --color-line: var(--color-line);
+
+  /* Marca */
+  --color-accent: var(--color-accent);
+  --color-accent-soft: var(--color-accent-soft);
+  --color-accent-hover: var(--color-accent-hover);
+
+  /* Estado */
+  --color-ok: var(--color-ok);
+  --color-ok-soft: var(--color-ok-soft);
+  --color-warn: var(--color-warn);
+  --color-warn-soft: var(--color-warn-soft);
+  --color-danger: var(--color-danger);
+  --color-danger-soft: var(--color-danger-soft);
+
+  /* Tipografía */
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', 'Consolas', monospace;
+
+  /* Tamaños de texto */
+  --text-2xs: 11px;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-md: 15px;
+  --text-lg: 16px;
+  --text-xl: 18px;
+  --text-2xl: 22px;
+  --text-3xl: 28px;
+  --text-4xl: 32px;
+
+  /* Border radius */
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --radius-2xl: 18px;
+  --radius-pill: 999px;
+
+  /* Sombras */
+  --shadow-card: var(--shadow-card);
+  --shadow-pop: var(--shadow-pop);
+  --shadow-focus: var(--shadow-focus);
+
+  /* Layout */
+  --spacing-sidebar: 240px;
+  --spacing-header: 64px;
+}
+
+/* ─── Reset visual ─────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-fg-1);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Transición suave al cambiar de tema */
+html.theme-transitioning,
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+  transition: background-color 0.25s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+/* Foco accesible por defecto */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
+/* Scrollbar según tema */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: var(--radius-sm); }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+
+/* Selección */
+::selection {
+  background: var(--color-accent-soft);
+  color: var(--color-fg-0);
 }

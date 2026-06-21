@@ -1,98 +1,736 @@
-import { useState } from 'react'
-import { Upload, CheckCircle2, AlertTriangle } from 'lucide-react'
-import { api } from '../../services/api'
-import { useToast } from '../../context/ToastContext'
-import { PageHeader, Card, Button, Badge, Center, Spinner } from '../../components/ui'
+/**
+ * ImportPage.jsx — Importar preguntas de exámenes y alumnos
+ * Tab exámenes: título + archivo CSV/XLSX → POST /api/v1/exams/import/ (crea examen + preguntas en un paso)
+ * Tab alumnos: CSV/XLSX → /api/v1/students/bulk/
+ */
+import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { PageHead } from '../../layout';
+import { Button, Icon, Badge, Card, Tabs } from '../../design-system';
+import { students as studentsApi, courses as coursesApi, imports as importsApi, exams as examsApi } from '../../services/api';
+import UploadZone from '../../features/import/UploadZone';
 
-export default function ImportPage() {
-  const toast = useToast()
-  const [preview, setPreview] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [confirming, setConfirming] = useState(false)
+const TABS = [
+  { key: 'examenes', label: 'Importar preguntas', icon: <Icon name="book" size={14} /> },
+  { key: 'alumnos', label: 'Importar alumnos', icon: <Icon name="users" size={14} /> },
+];
 
-  const onFile = async (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setLoading(true)
-    setPreview(null)
-    try {
-      const fd = new FormData()
-      fd.append('file', file)
-      const d = await api.post('/imports/preview/', fd)
-      setPreview(d)
-    } catch (err) {
-      toast.error(err?.message || 'No se pudo procesar el archivo')
-    } finally {
-      setLoading(false)
-      e.target.value = ''
-    }
+// ── Shared helpers ──────────────────────────────────────────────────────────
+
+function DropZone({ onFile, dragOver, setDragOver, inputRef }) {
+  return (
+    <div
+      className={`border-2 border-dashed rounded-xl p-12 text-center transition-colors cursor-pointer ${
+        dragOver ? 'border-accent bg-accent/5' : 'border-line hover:border-fg-3'
+      }`}
+      onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={e => { e.preventDefault(); setDragOver(false); onFile(e.dataTransfer.files[0]); }}
+      onClick={() => inputRef.current?.click()}
+    >
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".csv,.xlsx"
+        className="hidden"
+        onChange={e => onFile(e.target.files[0])}
+      />
+      <div className="grid h-14 w-14 place-items-center rounded-full bg-accent/10 mx-auto mb-4">
+        <Icon name="upload" size={22} className="text-accent" />
+      </div>
+      <h3 className="text-base font-medium text-fg-0 mb-1">Arrastra el archivo aquí</h3>
+      <p className="text-sm text-fg-2 mb-4">o haz clic para seleccionar</p>
+      <Badge variant="neutral">CSV · XLSX · Máx 10 MB</Badge>
+    </div>
+  );
+}
+
+function DownloadTemplate({ columns, filename, example }) {
+  function download() {
+    const header = columns.join(',');
+    const row = example.join(',');
+    const blob = new Blob([`${header}\n${row}\n`], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
   }
+  return (
+    <Button variant="ghost" size="sm" icon={<Icon name="download" size={13} />} onClick={download}>
+      Descargar plantilla
+    </Button>
+  );
+}
 
-  const confirm = async () => {
-    if (!preview) return
-    setConfirming(true)
-    try {
-      const d = await api.post('/imports/confirm/', {
-        draft_token: preview.draft_token,
-        rows: preview.rows,
-      })
-      toast.success(`${d.questions_created} preguntas importadas`)
-      setPreview(null)
-    } catch (err) {
-      toast.error(err?.message || 'No se pudo confirmar la importación')
-    } finally {
-      setConfirming(false)
-    }
-  }
+// ── Import Exámenes ─────────────────────────────────────────────────────────
+
+const EXAM_COLUMNS = [
+  '"Pregunta"', '"Opción A"', '"Opción B"', '"Opción C"', '"Opción D"',
+  '"Respuesta Correcta"', '"Explicación"', '"Tema"',
+];
+const EXAM_EXAMPLE = [
+  '"¿Cuál es la capa de transporte del modelo OSI?"',
+  '"Capa de Red"', '"Capa de Transporte"', '"Capa de Sesión"', '"Capa de Aplicación"',
+  '"B"', '"La capa de transporte gestiona TCP y UDP"', '"Redes"',
+];
+
+// ── Format info card (shared) ────────────────────────────────────────────────
+
+function FormatInfoCard() {
+  const [expanded, setExpanded] = useState(false);
 
   return (
-    <>
-      <PageHeader title="Importar preguntas" subtitle="Carga un archivo CSV o XLSX" />
-      <Card className="mb-4">
-        <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-[10px] border border-dashed py-10"
-          style={{ borderColor: 'var(--line)' }}>
-          <Upload size={28} style={{ color: 'var(--fg-2)' }} />
-          <span className="text-sm" style={{ color: 'var(--fg-1)' }}>Haz clic para seleccionar un archivo</span>
-          <span className="text-xs" style={{ color: 'var(--fg-2)' }}>CSV o XLSX · máx. 10 MB · 2000 filas</span>
-          <input type="file" accept=".csv,.xlsx" className="hidden" onChange={onFile} />
-        </label>
-      </Card>
+    <Card padding="md">
+      <div className="flex items-start justify-between mb-3">
+        <div>
+          <h4 className="text-sm font-semibold text-fg-0">Formato del archivo</h4>
+          <p className="text-xs text-fg-2 mt-0.5">El archivo debe tener estas columnas en la primera fila</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <DownloadTemplate
+            columns={EXAM_COLUMNS.map(c => c.replace(/"/g, ''))}
+            filename="plantilla-preguntas.csv"
+            example={EXAM_EXAMPLE.map(c => c.replace(/^"|"$/g, ''))}
+          />
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="p-1.5 rounded text-fg-3 hover:text-fg-0 hover:bg-bg-2 transition-colors"
+            aria-label={expanded ? 'Colapsar formato' : 'Expandir formato'}
+          >
+            <Icon name={expanded ? 'chevron-up' : 'chevron-down'} size={16} />
+          </button>
+        </div>
+      </div>
 
-      {loading && <Center><Spinner size={28} /></Center>}
+      {expanded && (
+        <>
+            <div className="bg-bg-2 rounded-xl px-4 py-3 mb-4 overflow-x-auto">
+            <code className="text-xs font-mono text-accent whitespace-nowrap">
+              {EXAM_COLUMNS.join(',')}
+            </code>
+          </div>
 
-      {preview && (
-        <Card>
-          <div className="mb-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Badge tone="accent">{preview.total_rows} filas</Badge>
-              {preview.error_count > 0
-                ? <Badge tone="danger"><AlertTriangle size={13} /> {preview.error_count} con error</Badge>
-                : <Badge tone="ok"><CheckCircle2 size={13} /> Sin errores</Badge>}
-            </div>
-            <Button onClick={confirm} loading={confirming} disabled={preview.total_rows === 0}>
-              Importar {preview.total_rows - (preview.error_count || 0)} válidas
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1 text-xs text-fg-2">
+            <p><span className="text-fg-0 font-medium">Pregunta</span> — Enunciado de la pregunta <span className="text-danger">*</span></p>
+            <p><span className="text-fg-0 font-medium">Opción A / B / C / D</span> — Alternativas de respuesta</p>
+            <p><span className="text-fg-0 font-medium">Respuesta Correcta</span> — Letra de la opción (A, B, C o D) <span className="text-danger">*</span></p>
+            <p><span className="text-fg-0 font-medium">Explicación</span> — Justificación de la respuesta (opcional)</p>
+            <p><span className="text-fg-0 font-medium">Tema</span> — Categoría o tema de la pregunta (opcional)</p>
+          </div>
+
+          <div className="mt-4 p-3 bg-bg-3 rounded-xl">
+            <p className="text-2xs text-fg-3 font-medium mb-1">Ejemplo de fila:</p>
+            <code className="text-2xs font-mono text-fg-1 break-all">
+              "¿Cuál es la capa de transporte?","Capa de Red","Capa de Transporte","Capa de Sesión","Capa de Aplicación","B","Gestiona TCP y UDP","Redes"
+            </code>
+          </div>
+
+          <div className="mt-3 p-3 bg-warn/5 border border-warn/20 rounded-xl">
+            <p className="text-xs text-warn font-medium mb-0.5">Reglas de importación</p>
+            <ul className="text-xs text-fg-2 space-y-0.5 list-disc list-inside">
+              <li>Puedes editar cualquier fila antes de confirmar</li>
+              <li>Las preguntas con errores no resueltos serán omitidas</li>
+              <li>Máximo 2 000 preguntas por archivo</li>
+              <li>Codificación UTF-8 recomendada para caracteres especiales (tildes, ñ)</li>
+            </ul>
+          </div>
+        </>
+      )}
+    </Card>
+  );
+}
+
+// ── Import Success Screen ────────────────────────────────────────────────────
+
+function ImportSuccessScreen({ examTitle, questionsCount, onReset, onGoToEditor }) {
+  return (
+    <Card padding="lg">
+      <div className="text-center py-8">
+        <div className="grid h-20 w-20 place-items-center rounded-full bg-ok/10 mx-auto mb-5">
+          <Icon name="check" size={32} className="text-ok" />
+        </div>
+        <h3 className="text-2xl font-semibold text-fg-0 mb-2">¡Examen creado!</h3>
+        <p className="text-base text-fg-1 mb-1">
+          <span className="font-bold text-fg-0">"{examTitle}"</span>
+        </p>
+        <p className="text-sm text-fg-2 mb-6">
+          <span className="font-bold text-ok">{questionsCount}</span> preguntas importadas correctamente
+        </p>
+        <div className="flex flex-col sm:flex-row justify-center gap-3">
+          <Button variant="ghost" onClick={onReset}>
+            Importar otro archivo
+          </Button>
+          <Button onClick={onGoToEditor}>
+            <Icon name="edit" size={14} />
+            Ir al editor del examen →
+          </Button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+// ── Import Wizard (combined endpoint) ────────────────────────────────────────
+
+const WIZARD_STEPS = [
+  { key: 'upload', label: 'Archivo' },
+  { key: 'preview', label: 'Previsualizar' },
+  { key: 'create', label: 'Crear' },
+];
+
+function WizardSteps({ phase }) {
+  const stepIndex = {
+    idle: 0, uploading: 0, preview: 1, creating: 2, done: 2,
+    error: -1, parsing_error: -1,
+  };
+  const current = stepIndex[phase] ?? 0;
+  if (current < 0) return null;
+
+  return (
+    <div className="flex items-center gap-2 mb-6">
+      {WIZARD_STEPS.map((s, i) => (
+        <div key={s.key} className="flex items-center gap-2">
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium transition-colors
+            ${i === current ? 'bg-accent/10 text-accent' : i < current ? 'text-ok' : 'text-fg-3'}`}>
+            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold
+              ${i === current ? 'bg-accent text-bg-1' : i < current ? 'bg-ok text-white' : 'bg-bg-2 text-fg-3'}`}>
+              {i < current ? '✓' : i + 1}
+            </span>
+            {s.label}
+          </div>
+          {i < WIZARD_STEPS.length - 1 && (
+            <div className={`w-8 h-px ${i < current ? 'bg-ok' : 'bg-line'}`} />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ImportExamsTab() {
+  const navigate = useNavigate();
+  const [phase, setPhase] = useState('idle');
+  const [examTitle, setExamTitle] = useState('');
+  const [dragOver, setDragOver] = useState(false);
+  const [previewData, setPreviewData] = useState(null);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successInfo, setSuccessInfo] = useState(null);
+  const inputRef = useRef(null);
+  const fileRef = useRef(null);
+
+  function reset() {
+    setPhase('idle');
+    setPreviewData(null);
+    setErrorMsg('');
+    setSuccessInfo(null);
+    setExamTitle('');
+    fileRef.current = null;
+    if (inputRef.current) inputRef.current.value = '';
+  }
+
+  // Step 1 → Upload file for preview (full_preview endpoint: all rows, full detail)
+  async function handleFile(file) {
+    if (!file) return;
+    if (!examTitle.trim() || examTitle.trim().length < 3) {
+      setErrorMsg('El título del examen debe tener al menos 3 caracteres.');
+      return;
+    }
+    fileRef.current = file;
+    setPhase('uploading');
+    setErrorMsg('');
+
+    const form = new FormData();
+    form.append('file', file);
+
+    try {
+      const data = await importsApi.preview(form);
+      setPreviewData(data);
+      setPhase('preview');
+    } catch (e) {
+      setErrorMsg(e.message);
+      setPhase('error');
+    }
+  }
+
+  // Step 2 → Create exam + questions (combined endpoint)
+  async function handleCreate() {
+    if (!fileRef.current) return;
+    setPhase('creating');
+    setErrorMsg('');
+
+    const form = new FormData();
+    form.append('file', fileRef.current);
+    form.append('title', examTitle.trim());
+
+    try {
+      const data = await examsApi.importExam(form);
+      setSuccessInfo({
+        examTitle: data.exam_title,
+        questionsCount: data.questions_created || 0,
+        examId: data.exam_id,
+      });
+      setPhase('done');
+    } catch (e) {
+      setErrorMsg(e.message);
+      setPhase('error');
+    }
+  }
+
+  // ── Creating (loading state) ──
+  if (phase === 'creating') {
+    return (
+      <div className="text-center py-12">
+        <div className="w-10 h-10 border-[3px] border-accent border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <h3 className="text-lg font-semibold text-fg-0 mb-1">Creando examen</h3>
+        <p className="text-sm text-fg-2">
+          Importando preguntas y creando "{examTitle}"…
+        </p>
+      </div>
+    );
+  }
+  if (phase === 'done' && successInfo) {
+    return (
+      <>
+        <WizardSteps phase="done" />
+        <ImportSuccessScreen
+          examTitle={successInfo.examTitle}
+          questionsCount={successInfo.questionsCount}
+          examId={successInfo.examId}
+          onReset={reset}
+          onGoToEditor={() => navigate(`/teacher/exams/${successInfo.examId}/edit`)}
+        />
+      </>
+    );
+  }
+
+  // ── Error ──
+  if (phase === 'error') {
+    return (
+      <Card padding="lg">
+        <div className="text-center py-6">
+          <div className="grid h-14 w-14 place-items-center rounded-full bg-danger/10 mx-auto mb-3">
+            <Icon name="info" size={22} className="text-danger" />
+          </div>
+          <h3 className="text-lg font-semibold text-fg-0 mb-1">Error en la importación</h3>
+          <p className="text-sm text-fg-2 mb-4">{errorMsg}</p>
+          <div className="flex justify-center gap-2">
+            <Button variant="secondary" onClick={() => { setPhase('idle'); setErrorMsg(''); }}>
+              Corregir y reintentar
+            </Button>
+            <Button variant="ghost" onClick={reset}>
+              Empezar de nuevo
             </Button>
           </div>
-          <div className="max-h-80 overflow-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr style={{ color: 'var(--fg-2)' }}>
-                  <th className="py-1 pr-2">#</th><th className="py-1 pr-2">Pregunta</th><th className="py-1">Tipo</th>
+        </div>
+      </Card>
+    );
+  }
+
+  // ── Preview ──
+  if (phase === 'preview' && previewData) {
+    const rows = previewData.rows || [];
+    const total = previewData.total_rows || rows.length;
+    const errorCount = previewData.error_count || 0;
+    const errorRows = new Set((previewData.errors || []).map(e => e.row));
+
+    const TYPE_LABEL = {
+      MULTIPLE_CHOICE: 'Opción múltiple',
+      BOOLEAN: 'V/F',
+      SHORT_ANSWER: 'Resp. corta',
+    };
+
+    return (
+      <>
+        <WizardSteps phase="preview" />
+        <div className="space-y-4">
+          <Card padding="md">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h4 className="text-sm font-semibold text-fg-0">Previsualización</h4>
+                <p className="text-xs text-fg-2 mt-0.5">
+                  {total} pregunta{total !== 1 ? 's' : ''} detectada{total !== 1 ? 's' : ''}
+                  {errorCount > 0 && (
+                    <span className="text-warn ml-1">({errorCount} con errores)</span>
+                  )}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" onClick={() => { setPhase('idle'); setPreviewData(null); }}>
+                  Volver
+                </Button>
+                <Button
+                  onClick={handleCreate}
+                  icon={<Icon name="check" size={14} />}
+                >
+                  Crear examen
+                </Button>
+              </div>
+            </div>
+
+            {/* Preview table */}
+            <div className="max-h-96 overflow-y-auto border border-line rounded-xl">
+              <table className="w-full text-xs">
+                <thead className="bg-bg-2 sticky top-0">
+                  <tr>
+                    <th className="text-left px-3 py-2 text-fg-3 font-semibold w-8">#</th>
+                    <th className="text-left px-3 py-2 text-fg-3 font-semibold">Pregunta</th>
+                    <th className="text-left px-3 py-2 text-fg-3 font-semibold w-16">Tipo</th>
+                    <th className="text-left px-3 py-2 text-fg-3 font-semibold w-20">Tema</th>
+                    <th className="text-left px-3 py-2 text-fg-3 font-semibold w-16">Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r, i) => {
+                    const hasError = errorRows.has(i + 1) || (r.errors && r.errors.length > 0);
+                    const errMsg = (previewData.errors || []).find(e => e.row === i + 1)?.message || '';
+                    return (
+                      <tr key={r._id || i} className={`border-t border-line/40 ${hasError ? 'bg-danger/5' : ''}`}>
+                        <td className="px-3 py-2 text-fg-3 font-mono">{i + 1}</td>
+                        <td className="px-3 py-2 text-fg-1 max-w-xs truncate" title={r.text || ''}>
+                          {r.text || '—'}
+                        </td>
+                        <td className="px-3 py-2">
+                          <span className="text-fg-3">{TYPE_LABEL[r.question_type] || r.question_type || '—'}</span>
+                        </td>
+                        <td className="px-3 py-2 text-fg-2 max-w-[120px] truncate">
+                          {r.category || '—'}
+                        </td>
+                        <td className="px-3 py-2">
+                          {hasError
+                            ? <Badge variant="danger" title={errMsg}>Error</Badge>
+                            : <Badge variant="success">Válida</Badge>
+                          }
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+
+          <FormatInfoCard />
+        </div>
+      </>
+    );
+  }
+
+  // ── Idle / Uploading ──
+  return (
+    <>
+      <WizardSteps phase={phase} />
+      <div className="space-y-4">
+        <Card padding="lg">
+          {/* Exam title input */}
+          <div className="mb-6">
+            <label className="block text-sm font-semibold text-fg-0 mb-2">
+              Título del examen <span className="text-danger">*</span>
+            </label>
+            <input
+              type="text"
+              value={examTitle}
+              onChange={e => { setExamTitle(e.target.value); setErrorMsg(''); }}
+              placeholder="Ej: Examen de Matemáticas - Unidad 3"
+              className="w-full bg-transparent border-2 border-line rounded-xl px-4 py-3 text-fg-0 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+              autoFocus
+            />
+            <p className="text-xs text-fg-3 mt-1">Mínimo 3 caracteres. Este será el nombre visible del examen.</p>
+          </div>
+
+          {/* Upload zone */}
+          <UploadZone
+            onFile={handleFile}
+            dragOver={dragOver}
+            setDragOver={setDragOver}
+            inputRef={inputRef}
+            error={errorMsg || null}
+          />
+          {phase === 'uploading' && (
+            <div className="mt-6 text-center">
+              <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+              <p className="text-sm text-fg-2">Analizando archivo…</p>
+            </div>
+          )}
+        </Card>
+
+        <FormatInfoCard />
+      </div>
+    </>
+  );
+}
+
+// ── Import Alumnos ──────────────────────────────────────────────────────────
+
+const STUDENT_COLUMNS = ['"DNI"', '"Nombres"', '"Apellidos"', '"Correo"'];
+const STUDENT_EXAMPLE = ['"12345678"', '"Jesús"', '"Flores"', '"jesus@ejemplo.com"'];
+
+// RFC 4180 compliant CSV line parser — handles quoted fields with embedded commas/newlines
+function parseCsvLine(line) {
+  const fields = [];
+  let i = 0;
+  while (i <= line.length) {
+    if (i === line.length) { fields.push(''); break; }
+    if (line[i] === '"') {
+      i++;
+      let field = '';
+      while (i < line.length) {
+        if (line[i] === '"' && line[i + 1] === '"') { field += '"'; i += 2; }
+        else if (line[i] === '"') { i++; break; }
+        else { field += line[i++]; }
+      }
+      fields.push(field.trim());
+      if (line[i] === ',') i++;
+    } else {
+      const end = line.indexOf(',', i);
+      if (end === -1) { fields.push(line.slice(i).trim()); break; }
+      fields.push(line.slice(i, end).trim());
+      i = end + 1;
+    }
+  }
+  return fields;
+}
+
+function parseCsvRows(text) {
+  const lines = text.trim().split(/\r?\n/).filter(Boolean);
+  if (lines.length < 2) return [];
+  const header = parseCsvLine(lines[0]).map(h => h.toLowerCase());
+
+  const colMap = {
+    dni: ['dni', 'code', 'codigo', 'código'],
+    first_name: ['nombres', 'nombre', 'first_name', 'firstname'],
+    last_name: ['apellidos', 'apellido', 'last_name', 'lastname'],
+    email: ['correo', 'email', 'mail'],
+  };
+
+  function findCol(keys) {
+    for (const k of keys) {
+      const i = header.indexOf(k);
+      if (i !== -1) return i;
+    }
+    return -1;
+  }
+
+  const idx = {
+    dni: findCol(colMap.dni),
+    first_name: findCol(colMap.first_name),
+    last_name: findCol(colMap.last_name),
+    email: findCol(colMap.email),
+  };
+
+  return lines.slice(1).map(line => {
+    const cols = parseCsvLine(line);
+    return {
+      code: idx.dni >= 0 ? cols[idx.dni] ?? '' : '',
+      first_name: idx.first_name >= 0 ? cols[idx.first_name] ?? '' : '',
+      last_name: idx.last_name >= 0 ? cols[idx.last_name] ?? '' : '',
+      email: idx.email >= 0 ? cols[idx.email] ?? '' : '',
+    };
+  }).filter(r => r.code && r.first_name && r.last_name);
+}
+
+function ImportStudentsTab() {
+  const navigate = useNavigate();
+  const [step, setStep] = useState('upload');
+  const [file, setFile] = useState(null);
+  const [rows, setRows] = useState([]);
+  const [dragOver, setDragOver] = useState(false);
+  const [courses, setCourses] = useState([]);
+  const [courseId, setCourseId] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState('');
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    let alive = true;
+    coursesApi.list().then(data => {
+      if (!alive) return;
+      const list = Array.isArray(data) ? data : (data.results ?? []);
+      setCourses(list);
+      if (list.length === 1) setCourseId(String(list[0].id));
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  function handleFile(f) {
+    if (!f) return;
+    setFile(f);
+    setError('');
+    const reader = new FileReader();
+    reader.onload = e => {
+      const parsed = parseCsvRows(e.target.result);
+      if (parsed.length === 0) {
+        setError('No se encontraron filas válidas. Verifica el formato del archivo.');
+        return;
+      }
+      setRows(parsed);
+      setStep('preview');
+    };
+    reader.readAsText(f, 'UTF-8');
+  }
+
+  function reset() {
+    setStep('upload');
+    setFile(null);
+    setRows([]);
+    setResult(null);
+    setError('');
+    if (inputRef.current) inputRef.current.value = '';
+  }
+
+  async function handleImport() {
+    if (!courseId) { setError('Selecciona un curso antes de importar.'); return; }
+    setImporting(true);
+    setError('');
+    try {
+      const data = await studentsApi.bulkImport(courseId, rows);
+      setResult(data);
+      setStep('done');
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  if (step === 'done') {
+    return (
+      <Card padding="lg">
+        <div className="text-center py-8">
+          <div className="grid h-16 w-16 place-items-center rounded-full bg-ok/10 mx-auto mb-4">
+            <Icon name="check" size={24} className="text-ok" />
+          </div>
+          <h3 className="text-xl font-semibold text-fg-0 mb-1">Importación completada</h3>
+          <p className="text-sm text-fg-2 mb-6">
+            {result?.created ?? rows.length} alumnos creados correctamente
+          </p>
+          <div className="flex justify-center gap-3">
+            <Button variant="secondary" onClick={reset}>Importar otro archivo</Button>
+            <Button onClick={() => navigate('/teacher/students')}>Ver alumnos</Button>
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  if (step === 'preview') {
+    return (
+      <div className="space-y-4">
+        <Card padding="md">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h4 className="text-sm font-semibold text-fg-0">{file?.name}</h4>
+              <p className="text-xs text-fg-2 mt-0.5">{rows.length} alumnos listos para importar</p>
+            </div>
+            <Button variant="ghost" size="sm" onClick={reset}>Cancelar</Button>
+          </div>
+
+          {error && (
+          <div className="mb-4 p-3 bg-danger/10 border border-danger/30 text-danger text-sm rounded-xl">{error}</div>
+          )}
+
+          <div className="mb-4">
+            <label className="block text-xs text-fg-1 font-medium mb-1">Curso de destino <span className="text-danger">*</span></label>
+            <select
+              value={courseId}
+              onChange={e => setCourseId(e.target.value)}
+              className="w-full bg-transparent border-2 border-line rounded-xl px-3 py-2.5 text-sm text-fg-0 outline-none focus:border-accent transition-colors"
+            >
+              <option value="">Seleccionar curso…</option>
+              {courses.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
+            </select>
+          </div>
+
+            <div className="max-h-48 overflow-y-auto border border-line rounded-xl mb-4">
+            <table className="w-full text-xs">
+              <thead className="bg-bg-2 sticky top-0">
+                <tr>
+                  <th className="text-left px-3 py-2 text-fg-3 font-semibold">DNI</th>
+                  <th className="text-left px-3 py-2 text-fg-3 font-semibold">Nombres</th>
+                  <th className="text-left px-3 py-2 text-fg-3 font-semibold">Apellidos</th>
+                  <th className="text-left px-3 py-2 text-fg-3 font-semibold">Email</th>
                 </tr>
               </thead>
               <tbody>
-                {(preview.rows || []).slice(0, 50).map((r, i) => (
-                  <tr key={i} className="border-t" style={{ borderColor: 'var(--line)' }}>
-                    <td className="py-1 pr-2" style={{ color: 'var(--fg-2)' }}>{i + 1}</td>
-                    <td className="py-1 pr-2">{r.question_text || r.text || '—'}</td>
-                    <td className="py-1" style={{ color: 'var(--fg-2)' }}>{r.question_type || r.type || '—'}</td>
+                {rows.slice(0, 50).map((r, i) => (
+                  <tr key={i} className="border-t border-line/40">
+                    <td className="px-3 py-1.5 font-mono text-fg-1">{r.code}</td>
+                    <td className="px-3 py-1.5 text-fg-1">{r.first_name}</td>
+                    <td className="px-3 py-1.5 text-fg-1">{r.last_name}</td>
+                    <td className="px-3 py-1.5 text-fg-3">{r.email || '—'}</td>
                   </tr>
                 ))}
+                {rows.length > 50 && (
+                  <tr><td colSpan="4" className="px-3 py-2 text-fg-3 text-center">… y {rows.length - 50} más</td></tr>
+                )}
               </tbody>
             </table>
           </div>
+
+          <Button onClick={handleImport} disabled={importing || !courseId} className="w-full">
+            {importing ? 'Importando…' : `Importar ${rows.length} alumnos`}
+          </Button>
         </Card>
-      )}
-    </>
-  )
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card padding="lg">
+        {error && (
+          <div className="mb-4 p-3 bg-danger/10 border border-danger/30 text-danger text-sm rounded-xl">{error}</div>
+        )}
+        <DropZone onFile={handleFile} dragOver={dragOver} setDragOver={setDragOver} inputRef={inputRef} />
+      </Card>
+
+      <Card padding="md">
+        <div className="flex items-start justify-between mb-3">
+          <div>
+            <h4 className="text-sm font-semibold text-fg-0">Formato del archivo</h4>
+            <p className="text-xs text-fg-2 mt-0.5">Columnas requeridas en la primera fila</p>
+          </div>
+          <DownloadTemplate
+            columns={STUDENT_COLUMNS.map(c => c.replace(/"/g, ''))}
+            filename="plantilla-alumnos.csv"
+            example={STUDENT_EXAMPLE.map(c => c.replace(/^"|"$/g, ''))}
+          />
+        </div>
+
+            <div className="bg-bg-2 rounded-xl px-4 py-3 mb-4 overflow-x-auto">
+              <code className="text-xs font-mono text-accent whitespace-nowrap">
+                {STUDENT_COLUMNS.join(',')}
+              </code>
+            </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1 text-xs text-fg-2">
+          <p><span className="text-fg-0 font-medium">DNI</span> — Código del alumno <span className="text-danger">*</span></p>
+          <p><span className="text-fg-0 font-medium">Nombres</span> — Nombres del alumno <span className="text-danger">*</span></p>
+          <p><span className="text-fg-0 font-medium">Apellidos</span> — Apellidos del alumno <span className="text-danger">*</span></p>
+          <p><span className="text-fg-0 font-medium">Correo</span> — Email (opcional)</p>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// ── Main ────────────────────────────────────────────────────────────────────
+
+export default function ImportPage() {
+  const [tab, setTab] = useState('examenes');
+
+  return (
+    <div>
+      <PageHead
+        breadcrumb={['Importar']}
+        title="Importar"
+        subtitle="Importa preguntas y alumnos desde archivos CSV o XLSX"
+      />
+      <div className="p-6 max-w-[860px]">
+        <Tabs tabs={TABS} activeKey={tab} onChange={setTab} className="mb-6" />
+        {tab === 'examenes' && <ImportExamsTab />}
+        {tab === 'alumnos' && <ImportStudentsTab />}
+      </div>
+    </div>
+  );
 }

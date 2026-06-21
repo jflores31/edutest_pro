@@ -1,40 +1,65 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+/**
+ * useApi.js — Hook genérico para llamadas a la API
+ * Maneja loading, error, data y cancelación
+ */
+import { useState, useEffect, useCallback, useRef } from 'react';
 
-// Runs an async api call on mount (and when deps change). Returns { data, loading, error, reload }.
-export function useApi(apiCall, deps = []) {
-  const [data, setData] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const callRef = useRef(apiCall)
-  callRef.current = apiCall
+export function useApi(fetchFn, deps = [], options = {}) {
+  const { immediate = true, initialData = null } = options;
+  const [data, setData] = useState(initialData);
+  const [loading, setLoading] = useState(immediate);
+  const [error, setError] = useState(null);
+  const mountedRef = useRef(true);
+  const abortControllerRef = useRef(null);
 
-  const run = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const result = await callRef.current()
-      setData(result)
-      return result
-    } catch (e) {
-      setError(e)
-      return null
-    } finally {
-      setLoading(false)
+  const execute = useCallback(async (...args) => {
+    // Cancelar request anterior si existe
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps)
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await fetchFn(...args, { signal: controller.signal });
+      if (mountedRef.current && !controller.signal.aborted) {
+        setData(result);
+        setLoading(false);
+      }
+      return result;
+    } catch (err) {
+      if (err.name === 'AbortError') return;
+      if (mountedRef.current) {
+        setError(err.message);
+        setLoading(false);
+      }
+      throw err;
+    }
+  }, [fetchFn]);
 
   useEffect(() => {
-    let active = true
-    setLoading(true)
-    setError(null)
-    callRef.current()
-      .then((r) => { if (active) setData(r) })
-      .catch((e) => { if (active) setError(e) })
-      .finally(() => { if (active) setLoading(false) })
-    return () => { active = false }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps)
+    mountedRef.current = true;
+    if (immediate) {
+      execute();
+    }
+    return () => {
+      mountedRef.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, deps);
 
-  return { data, loading, error, reload: run }
+  const cancel = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+  }, []);
+
+  return { data, loading, error, execute, setData, cancel };
 }
+
+export default useApi;

@@ -1,0 +1,59 @@
+import { useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Card, Icon } from '../../design-system';
+
+export function EmptyBanner() {
+  const navigate = useNavigate();
+  return (
+    <div className="flex items-center justify-between gap-4 bg-accent-soft border border-accent/15 rounded-xl px-5 py-4">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="grid h-9 w-9 place-items-center rounded-xl bg-accent/10 shrink-0">
+          <Icon name="chart" size={18} className="text-accent" strokeWidth={1.8} />
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-fg-0">A\u00fan no hay intentos completados</p>
+          <p className="text-xs text-fg-2 truncate">Comparte el link del examen con tus alumnos para ver estad\u00edsticas.</p>
+        </div>
+      </div>
+      <button onClick={() => navigate('/teacher/exams')} className="shrink-0">
+        <span className="text-sm font-medium text-accent hover:underline">Ir a ex\u00e1menes \u2192</span>
+      </button>
+    </div>
+  );
+}
+
+export function QuickActions({ stats, liveData }) {
+  const actions = useMemo(() => {
+    const base = [
+      { icon: 'plus',   label: 'Nuevo examen',      to: '/teacher/exams/new' },
+      { icon: 'upload', label: 'Importar preguntas', to: '/teacher/import' },
+    ];
+    if ((liveData?.proctoring_alerts_24h ?? 0) > 0) {
+      base.push({ icon: 'alert', label: `${liveData.proctoring_alerts_24h} alertas`, to: '/teacher/monitoring', urgent: true });
+    } else if ((stats?.exams_draft_count ?? 0) > 0) {
+      base.push({ icon: 'edit', label: `${stats.exams_draft_count} borradores`, to: '/teacher/exams?filter=draft' });
+    } else {
+      base.push({ icon: 'chart', label: 'Comparar ex\u00e1menes', to: '/teacher/compare' });
+    }
+    base.push({ icon: 'users', label: 'Ver estudiantes', to: '/teacher/students' });
+    return base;
+  }, [stats, liveData]);
+
+  return (
+    <Card title="Acceso r\u00e1pido" padding="sm" variant="outlined">
+      <div className="grid grid-cols-2 gap-2">
+        {actions.map(a => (
+          <Link
+            key={a.label}
+            to={a.to}
+            className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-bg-2/60 transition-colors text-sm
+              ${a.urgent ? 'text-warn hover:bg-warn-soft' : 'text-fg-1 hover:bg-accent-soft hover:text-accent'}`}
+          >
+            <Icon name={a.icon} size={14} strokeWidth={1.8} />
+            {a.label}
+          </Link>
+        ))}
+      </div>
+    </Card>
+  );
+}

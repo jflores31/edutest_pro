@@ -1,54 +1,116 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { GraduationCap } from 'lucide-react'
-import { useAuth } from '../../context/AuthContext'
-import { Button, Card, Field, Input } from '../../components/ui'
+/**
+ * LoginPage.jsx — Login del docente (MD3)
+ */
+import { useState } from 'react';
+import { useNavigate, Navigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { Button, Input } from '../../design-system';
 
 export default function LoginPage() {
-  const { user, login } = useAuth()
-  const navigate = useNavigate()
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState(null)
-  const [loading, setLoading] = useState(false)
+  const { login, isAuthenticated, loading } = useAuth();
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    if (user) navigate('/teacher/dashboard', { replace: true })
-  }, [user, navigate])
+  const [credential, setCredential] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [showRecoverMsg, setShowRecoverMsg] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const submit = async (e) => {
-    e.preventDefault()
-    setError(null)
-    setLoading(true)
+  if (loading) return null;
+  if (isAuthenticated) return <Navigate to="/teacher/dashboard" replace />;
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError('');
+
+    if (!credential.trim() || !password.trim()) {
+      setError('Completa todos los campos');
+      return;
+    }
+
+    setSubmitting(true);
     try {
-      const me = await login(username, password)
-      if (me) navigate('/teacher/dashboard', { replace: true })
-      else setError('Credenciales inválidas.')
+      await login(credential.trim(), password);
+      navigate('/teacher/dashboard');
     } catch (err) {
-      setError(err?.message || 'No se pudo iniciar sesión.')
+      setError(err.message);
     } finally {
-      setLoading(false)
+      setSubmitting(false);
     }
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4" style={{ background: 'var(--bg-0)' }}>
-      <Card className="w-full max-w-sm">
-        <div className="mb-6 flex flex-col items-center gap-2">
-          <GraduationCap size={32} style={{ color: 'var(--accent)' }} />
-          <h1 className="text-xl font-semibold">EduTest Pro</h1>
-          <p className="text-sm" style={{ color: 'var(--fg-2)' }}>Panel docente</p>
+    <div className="min-h-screen bg-bg grid place-items-center p-6">
+      <div className="w-full max-w-md">
+        {/* Logo */}
+        <div className="flex items-center justify-center gap-3 mb-10">
+          <div className="grid h-12 w-12 place-items-center rounded-2xl bg-accent text-xl font-bold text-bg-1">
+            E
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-fg-0">EduTest Pro</h1>
+            <p className="text-xs text-fg-3">Plataforma de evaluación</p>
+          </div>
         </div>
-        <form onSubmit={submit} className="flex flex-col gap-4">
-          <Field label="Usuario">
-            <Input value={username} onChange={(e) => setUsername(e.target.value)} autoFocus required />
-          </Field>
-          <Field label="Contraseña" error={error}>
-            <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-          </Field>
-          <Button type="submit" loading={loading} className="mt-2">Ingresar</Button>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="bg-bg-1 shadow-card rounded-2xl p-8 space-y-6">
+          <div className="text-center">
+            <h2 className="text-lg font-semibold text-fg-0">Iniciar sesión</h2>
+            <p className="text-sm text-fg-3 mt-1">Ingresa tus credenciales de docente</p>
+          </div>
+
+          <Input
+            label="Correo o usuario"
+            type="text"
+            value={credential}
+            onChange={e => setCredential(e.target.value)}
+            placeholder="admin  o  docente@ejemplo.com"
+            autoComplete="username"
+          />
+
+          <Input
+            label="Contraseña"
+            type="password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            placeholder="••••••••"
+            autoComplete="current-password"
+          />
+
+          {error && (
+            <div className="bg-danger-soft border border-danger/20 text-danger text-sm px-4 py-3 rounded-xl" role="alert">
+              {error}
+            </div>
+          )}
+
+          <Button
+            type="submit"
+            variant="primary"
+            size="lg"
+            className="w-full"
+            disabled={submitting}
+          >
+            {submitting ? 'Validando…' : 'Ingresar'}
+          </Button>
+
+          <p className="text-center text-xs text-fg-3">
+            ¿Olvidaste tu contraseña?{' '}
+            <button
+              type="button"
+              className="text-accent hover:underline font-medium"
+              onClick={() => setShowRecoverMsg(true)}
+            >
+              Recuperar
+            </button>
+          </p>
+          {showRecoverMsg && (
+            <div className="bg-accent-soft border border-accent/15 text-fg-1 text-sm px-4 py-3 rounded-xl">
+              Contacta al administrador para recuperar tu contraseña.
+            </div>
+          )}
         </form>
-      </Card>
+      </div>
     </div>
-  )
+  );
 }
