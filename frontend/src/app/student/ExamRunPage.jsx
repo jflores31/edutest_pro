@@ -88,7 +88,7 @@ export default function ExamRunPage() {
   const answeredCount = questions.filter((q) => {
     const a = answers[q.question_id]
     if (!a) return false
-    return (a.selected_keys?.length) || a.value != null || (a.text && a.text.trim())
+    return (a.selected_keys?.length) || a.selected_key || a.value != null || (a.text && a.text.trim())
   }).length
 
   return (
@@ -128,13 +128,15 @@ function QuestionInput({ q, value, onChange }) {
   if (type === 'MULTIPLE_CHOICE') {
     const options = q.metadata?.options || []
     const multiple = Boolean(q.metadata?.multiple)
-    const selected = value?.selected_keys || []
+    // Backend scoring reads `selected_key` (string) for single-select and
+    // `selected_keys` (array) for multi-select — send the matching shape.
+    const selected = value?.selected_keys || (value?.selected_key ? [value.selected_key] : [])
     const toggle = (key) => {
       if (multiple) {
         const next = selected.includes(key) ? selected.filter((k) => k !== key) : [...selected, key]
         onChange({ selected_keys: next })
       } else {
-        onChange({ selected_keys: [key] })
+        onChange({ selected_key: key })
       }
     }
     return (
@@ -156,7 +158,7 @@ function QuestionInput({ q, value, onChange }) {
       </div>
     )
   }
-  if (type === 'TRUE_FALSE') {
+  if (type === 'BOOLEAN') {
     const val = value?.value
     return (
       <div className="flex gap-2">

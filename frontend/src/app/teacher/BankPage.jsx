@@ -6,7 +6,7 @@ import { PageHeader, Card, Input, Select, Badge, Center, Spinner, ErrorState, Em
 
 const TYPE_LABELS = {
   MULTIPLE_CHOICE: 'Opción múltiple',
-  TRUE_FALSE: 'Verdadero/Falso',
+  BOOLEAN: 'Verdadero/Falso',
   SHORT_ANSWER: 'Respuesta corta',
 }
 
