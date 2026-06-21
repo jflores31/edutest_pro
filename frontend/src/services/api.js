@@ -89,7 +89,7 @@ export const api = {
 
 // ── Auth helpers (teacher/admin) ────────────────────────────────────────────
 export const authApi = {
-  login: (username, password) => api.post('/auth/login/', { username, password }),
+  login: (username, password) => api.post('/auth/login/', { email: username, password }),
   logout: () => api.post('/auth/logout/'),
   me: () => api.get('/auth/me/'),
   changePassword: (old_password, new_password) =>

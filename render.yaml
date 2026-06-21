@@ -12,6 +12,9 @@ services:
     plan: free
     rootDir: backend
     buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate --noinput"
+    # Runs once per deploy, after build, before traffic switches. Seeds demo data
+    # only when SEED_ON_DEPLOY=true (idempotent: seed_data uses get_or_create).
+    preDeployCommand: "python manage.py migrate --noinput && (if [ \"$SEED_ON_DEPLOY\" = \"true\" ]; then python manage.py seed_data; fi)"
     startCommand: "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
     healthCheckPath: /api/health/
     envVars:
@@ -21,6 +24,9 @@ services:
         value: config.settings
       - key: DEBUG
         value: "False"
+      # Set to "true" once to seed demo data (admin/Admin1234!), then back to "false".
+      - key: SEED_ON_DEPLOY
+        sync: false
       # ── Secrets: set these in the Render dashboard (sync:false = not in repo) ──
       - key: SECRET_KEY
         sync: false
