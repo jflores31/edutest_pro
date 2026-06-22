@@ -21,6 +21,7 @@ _HEADER_MAP = {
     "first_name": "first_name", "first name": "first_name",
     "apellidos": "last_name", "apellido": "last_name",
     "last_name": "last_name", "last name": "last_name",
+    "correo": "email", "email": "email", "mail": "email", "e-mail": "email",
 }
 
 
@@ -112,13 +113,14 @@ def _normalize_rows(rows):
                 "dni": _cell(r, idx["dni"]),
                 "first_name": _cell(r, idx["first_name"]),
                 "last_name": _cell(r, idx["last_name"]),
+                "email": _cell(r, idx["email"]) if "email" in idx else "",
             }
             for r in data_rows
         ]
     else:
         # Sin encabezado: se asume el orden DNI, Nombres, Apellidos
         out = [
-            {"dni": _cell(r, 0), "first_name": _cell(r, 1), "last_name": _cell(r, 2)}
+            {"dni": _cell(r, 0), "first_name": _cell(r, 1), "last_name": _cell(r, 2), "email": ""}
             for r in rows
         ]
 

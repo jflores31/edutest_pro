@@ -488,8 +488,8 @@ function ImportExamsTab() {
 const STUDENT_COLUMNS = ['"DNI"', '"Nombres"', '"Apellidos"', '"Correo"'];
 const STUDENT_EXAMPLE = ['"12345678"', '"Jesús"', '"Flores"', '"jesus@ejemplo.com"'];
 
-// RFC 4180 compliant CSV line parser — handles quoted fields with embedded commas/newlines
-function parseCsvLine(line) {
+// RFC 4180 compliant CSV line parser — handles quoted fields with embedded delimiters/newlines
+function parseCsvLine(line, delim = ',') {
   const fields = [];
   let i = 0;
   while (i <= line.length) {
@@ -503,9 +503,9 @@ function parseCsvLine(line) {
         else { field += line[i++]; }
       }
       fields.push(field.trim());
-      if (line[i] === ',') i++;
+      if (line[i] === delim) i++;
     } else {
-      const end = line.indexOf(',', i);
+      const end = line.indexOf(delim, i);
       if (end === -1) { fields.push(line.slice(i).trim()); break; }
       fields.push(line.slice(i, end).trim());
       i = end + 1;
@@ -517,7 +517,9 @@ function parseCsvLine(line) {
 function parseCsvRows(text) {
   const lines = text.trim().split(/\r?\n/).filter(Boolean);
   if (lines.length < 2) return [];
-  const header = parseCsvLine(lines[0]).map(h => h.toLowerCase());
+  // Detecta el delimitador (Excel en español exporta con ';')
+  const delim = lines[0].split(';').length > lines[0].split(',').length ? ';' : ',';
+  const header = parseCsvLine(lines[0], delim).map(h => h.toLowerCase());
 
   const colMap = {
     dni: ['dni', 'code', 'codigo', 'código'],
@@ -542,7 +544,7 @@ function parseCsvRows(text) {
   };
 
   return lines.slice(1).map(line => {
-    const cols = parseCsvLine(line);
+    const cols = parseCsvLine(line, delim);
     return {
       code: idx.dni >= 0 ? cols[idx.dni] ?? '' : '',
       first_name: idx.first_name >= 0 ? cols[idx.first_name] ?? '' : '',
@@ -580,14 +582,17 @@ function ImportStudentsTab() {
     if (!f) return;
     setFile(f);
     setError('');
+    setResult(null);
+    // XLSX (u otros): no se puede previsualizar en el navegador; el backend lo
+    // parsea de forma robusta al importar (CSV con coma/;/tab, o XLSX).
+    if (!/\.(csv|txt)$/i.test(f.name)) {
+      setRows([]);
+      setStep('preview');
+      return;
+    }
     const reader = new FileReader();
     reader.onload = e => {
-      const parsed = parseCsvRows(e.target.result);
-      if (parsed.length === 0) {
-        setError('No se encontraron filas válidas. Verifica el formato del archivo.');
-        return;
-      }
-      setRows(parsed);
+      setRows(parseCsvRows(e.target.result));
       setStep('preview');
     };
     reader.readAsText(f, 'UTF-8');
@@ -607,7 +612,8 @@ function ImportStudentsTab() {
     setImporting(true);
     setError('');
     try {
-      const data = await studentsApi.bulkImport(courseId, rows);
+      // Sube el archivo original al backend, que parsea CSV (coma/;/tab) y XLSX.
+      const data = await studentsApi.importFile(courseId, file);
       setResult(data);
       setStep('done');
     } catch (e) {
@@ -625,9 +631,16 @@ function ImportStudentsTab() {
             <Icon name="check" size={24} className="text-ok" />
           </div>
           <h3 className="text-xl font-semibold text-fg-0 mb-1">Importación completada</h3>
-          <p className="text-sm text-fg-2 mb-6">
-            {result?.created ?? rows.length} alumnos creados correctamente
+          <p className="text-sm text-fg-2 mb-1">
+            {result?.created ?? 0} alumnos creados correctamente
           </p>
+          {result?.skipped?.length > 0 && (
+            <p className="text-xs text-warn mb-1">{result.skipped.length} omitidos (DNI ya registrado)</p>
+          )}
+          {result?.errors?.length > 0 && (
+            <p className="text-xs text-danger mb-1">{result.errors.length} filas con datos incompletos</p>
+          )}
+          <div className="mb-6" />
           <div className="flex justify-center gap-3">
             <Button variant="secondary" onClick={reset}>Importar otro archivo</Button>
             <Button onClick={() => navigate('/teacher/students')}>Ver alumnos</Button>
@@ -644,7 +657,11 @@ function ImportStudentsTab() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h4 className="text-sm font-semibold text-fg-0">{file?.name}</h4>
-              <p className="text-xs text-fg-2 mt-0.5">{rows.length} alumnos listos para importar</p>
+              <p className="text-xs text-fg-2 mt-0.5">
+                {rows.length > 0
+                  ? `${rows.length} alumnos detectados`
+                  : 'Vista previa no disponible para este formato; se validará al importar'}
+              </p>
             </div>
             <Button variant="ghost" size="sm" onClick={reset}>Cancelar</Button>
           </div>
@@ -665,6 +682,7 @@ function ImportStudentsTab() {
             </select>
           </div>
 
+            {rows.length > 0 && (
             <div className="max-h-48 overflow-y-auto border border-line rounded-xl mb-4">
             <table className="w-full text-xs">
               <thead className="bg-bg-2 sticky top-0">
@@ -690,9 +708,10 @@ function ImportStudentsTab() {
               </tbody>
             </table>
           </div>
+            )}
 
           <Button onClick={handleImport} disabled={importing || !courseId} className="w-full">
-            {importing ? 'Importando…' : `Importar ${rows.length} alumnos`}
+            {importing ? 'Importando…' : (rows.length > 0 ? `Importar ${rows.length} alumnos` : 'Importar alumnos')}
           </Button>
         </Card>
       </div>

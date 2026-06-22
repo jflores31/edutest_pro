@@ -230,6 +230,7 @@ class StudentViewSet(viewsets.ModelViewSet):
                         "course": course,
                         "first_name": first_name,
                         "last_name": last_name,
+                        "email": r.get("email", ""),
                     },
                 )
                 if was_created:
