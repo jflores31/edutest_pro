@@ -436,13 +436,15 @@ class ImportService:
         file: IO[bytes],
         organization: Organization,
         created_by: User,
+        skip_invalid: bool = False,
     ) -> ImportResult:
         """
         Valida y persiste las preguntas del archivo en una transacción atómica.
 
         Política de errores:
-            Si CUALQUIER fila falla la validación, se aborta TODO el proceso.
-            No se crean preguntas parciales.
+            skip_invalid=False (default): si CUALQUIER fila falla, se aborta TODO.
+            skip_invalid=True: importa las filas válidas y reporta las inválidas
+            (ImportResult.errors); solo aborta si NINGUNA fila es válida.
 
         Args:
             file: File-like object en modo binario.
@@ -471,7 +473,7 @@ class ImportService:
 
         # Validación previa (sin tocar la BD)
         errors = self.validate_file(self._rewind(file))
-        if errors:
+        if errors and not skip_invalid:
             logger.warning(
                 "Importación abortada por errores de validación",
                 extra={
@@ -485,8 +487,21 @@ class ImportService:
                 errors=[e.to_dict() for e in errors],
             )
 
-        # Persistencia atómica
-        question_ids = self._persist_questions(rows, organization, created_by)
+        # Modo tolerante: omite solo las filas inválidas (el header es la fila 1).
+        if skip_invalid and errors:
+            bad_rows = {e.row for e in errors}
+            valid_rows = [r for i, r in enumerate(rows, start=2) if i not in bad_rows]
+        else:
+            valid_rows = rows
+
+        if not valid_rows:
+            raise ImportValidationError(
+                message="Ninguna fila válida para importar.",
+                errors=[e.to_dict() for e in errors],
+            )
+
+        # Persistencia atómica (solo filas válidas)
+        question_ids = self._persist_questions(valid_rows, organization, created_by)
 
         logger.info(
             "Importación completada exitosamente",
@@ -500,7 +515,7 @@ class ImportService:
             success=True,
             questions_created=len(question_ids),
             total_rows=total_rows,
-            errors=[],
+            errors=errors if skip_invalid else [],
             is_dry_run=False,
             question_ids=question_ids,
         )

@@ -380,7 +380,11 @@ class ExamViewSet(viewsets.ModelViewSet):
                 return Response({"error": "El título debe tener al menos 3 caracteres."}, status=status.HTTP_400_BAD_REQUEST)
 
             with transaction.atomic():
-                result = service.process_file(file, request.user.organization, request.user)
+                # Tolerante: importa las preguntas válidas y reporta las inválidas
+                # (no bloquea todo el examen por unas pocas filas con error).
+                result = service.process_file(
+                    file, request.user.organization, request.user, skip_invalid=True
+                )
 
                 exam = Exam.objects.create(
                     organization=request.user.organization,

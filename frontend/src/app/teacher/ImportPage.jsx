@@ -167,7 +167,7 @@ function FormatInfoCard() {
 
 // ── Import Success Screen ────────────────────────────────────────────────────
 
-function ImportSuccessScreen({ examTitle, questionsCount, onReset, onGoToEditor }) {
+function ImportSuccessScreen({ examTitle, questionsCount, skipped = 0, onReset, onGoToEditor }) {
   return (
     <Card padding="lg">
       <div className="text-center py-8">
@@ -178,9 +178,13 @@ function ImportSuccessScreen({ examTitle, questionsCount, onReset, onGoToEditor 
         <p className="text-base text-fg-1 mb-1">
           <span className="font-bold text-fg-0">"{examTitle}"</span>
         </p>
-        <p className="text-sm text-fg-2 mb-6">
+        <p className="text-sm text-fg-2 mb-1">
           <span className="font-bold text-ok">{questionsCount}</span> preguntas importadas correctamente
         </p>
+        {skipped > 0 && (
+          <p className="text-xs text-warn mb-1">{skipped} pregunta(s) omitida(s) por errores (revisa el formato/respuestas).</p>
+        )}
+        <div className="mb-6" />
         <div className="flex flex-col sm:flex-row justify-center gap-3">
           <Button variant="ghost" onClick={onReset}>
             Importar otro archivo
@@ -293,6 +297,7 @@ function ImportExamsTab() {
       setSuccessInfo({
         examTitle: data.exam_title,
         questionsCount: data.questions_created || 0,
+        skipped: Math.max(0, (data.total_rows || 0) - (data.questions_created || 0)),
         examId: data.exam_id,
       });
       setPhase('done');
@@ -321,6 +326,7 @@ function ImportExamsTab() {
         <ImportSuccessScreen
           examTitle={successInfo.examTitle}
           questionsCount={successInfo.questionsCount}
+          skipped={successInfo.skipped}
           examId={successInfo.examId}
           onReset={reset}
           onGoToEditor={() => navigate(`/teacher/exams/${successInfo.examId}/edit`)}
