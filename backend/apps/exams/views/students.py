@@ -193,6 +193,7 @@ class StudentViewSet(viewsets.ModelViewSet):
         y la unicidad es por organización (DNI repetido → omitido).
         """
         from services.student_import_service import parse_student_file, StudentFileError
+        from ..serializers import DNI_PATTERN
 
         course_id = request.data.get("course_id")
         if not course_id:
@@ -222,6 +223,9 @@ class StudentViewSet(viewsets.ModelViewSet):
                 dni, first_name, last_name = r["dni"], r["first_name"], r["last_name"]
                 if not (dni and first_name and last_name):
                     errors.append({"row": i, "message": "DNI, Nombres y Apellidos son obligatorios."})
+                    continue
+                if not DNI_PATTERN.match(dni):
+                    errors.append({"row": i, "message": f"DNI inválido '{dni}': debe tener 8 dígitos (solo números)."})
                     continue
                 _, was_created = Student.objects.get_or_create(
                     organization=request.user.organization,

@@ -747,7 +747,7 @@ function ImportStudentsTab() {
             </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1 text-xs text-fg-2">
-          <p><span className="text-fg-0 font-medium">DNI</span> — Código del alumno <span className="text-danger">*</span></p>
+          <p><span className="text-fg-0 font-medium">DNI</span> — 8 dígitos, solo números <span className="text-danger">*</span></p>
           <p><span className="text-fg-0 font-medium">Nombres</span> — Nombres del alumno <span className="text-danger">*</span></p>
           <p><span className="text-fg-0 font-medium">Apellidos</span> — Apellidos del alumno <span className="text-danger">*</span></p>
           <p><span className="text-fg-0 font-medium">Correo</span> — Email (opcional)</p>

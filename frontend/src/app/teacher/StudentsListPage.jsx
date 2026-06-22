@@ -22,6 +22,10 @@ function EditStudentModal({ student, courses, onSave, onClose }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   async function handleSave() {
+    if (!/^\d{8}$/.test(form.code || '')) {
+      setError('El DNI debe tener exactamente 8 dígitos (solo números).');
+      return;
+    }
     setSaving(true);
     setError('');
     try {
@@ -47,7 +51,7 @@ function EditStudentModal({ student, courses, onSave, onClose }) {
           <Input label="Nombre" value={form.first_name} onChange={e => set('first_name', e.target.value)} />
           <Input label="Apellido" value={form.last_name} onChange={e => set('last_name', e.target.value)} />
         </div>
-        <Input label="DNI / Código" value={form.code} onChange={e => set('code', e.target.value)} monospace />
+        <Input label="DNI (8 dígitos)" value={form.code} onChange={e => set('code', e.target.value.replace(/\D/g, '').slice(0, 8))} inputMode="numeric" maxLength={8} monospace />
         <div>
           <label className="block text-xs font-medium text-fg-1 mb-1">Curso</label>
           <select value={form.course} onChange={e => set('course', e.target.value)}
@@ -105,7 +109,8 @@ function ImportStudentsModal({ courses, defaultCourse, onClose, onDone }) {
           <p className="text-xs text-fg-2 mt-1">
             Archivo <span className="font-mono text-fg-1">.csv</span> o{' '}
             <span className="font-mono text-fg-1">.xlsx</span> con columnas:{' '}
-            <span className="font-mono text-fg-1">DNI, Nombres, Apellidos</span>
+            <span className="font-mono text-fg-1">DNI, Nombres, Apellidos</span>.
+            El DNI debe tener 8 dígitos (solo números).
           </p>
         </div>
 

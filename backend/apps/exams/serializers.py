@@ -3,6 +3,7 @@ EduTest Pro — DRF Serializers
 """
 
 import logging
+import re
 
 from django.contrib.auth import get_user_model
 from django.db.models import Prefetch, Q
@@ -13,6 +14,10 @@ from .models import (
     Attempt, AttemptAnswer, Course, Exam, ExamQuestion,
     ExamSnapshot, ExamTemplate, ImportJob, Organization, Question, Student,
 )
+
+# El DNI (código del alumno) debe ser exactamente 8 dígitos, solo números.
+DNI_PATTERN = re.compile(r"^[0-9]{8}$")
+DNI_MESSAGE = "El DNI debe tener exactamente 8 dígitos (solo números)."
 
 User = get_user_model()
 logger = logging.getLogger("edutest")
@@ -353,7 +358,9 @@ class StudentSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at", "organization"]
 
     def validate_code(self, value):
-        """El DNI/código es único por organización (clean 400 en vez de 500)."""
+        """DNI: exactamente 8 dígitos y único por organización."""
+        if not DNI_PATTERN.match(value or ""):
+            raise serializers.ValidationError(DNI_MESSAGE)
         request = self.context.get("request")
         org = getattr(getattr(request, "user", None), "organization", None)
         if org is None:
@@ -405,6 +412,11 @@ class StudentBulkItemSerializer(serializers.Serializer):
     first_name = serializers.CharField(max_length=100)
     last_name = serializers.CharField(max_length=100)
     email = serializers.EmailField(required=False, default="", allow_blank=True)
+
+    def validate_code(self, value):
+        if not DNI_PATTERN.match(value or ""):
+            raise serializers.ValidationError(DNI_MESSAGE)
+        return value
 
 
 class StudentProfileSerializer(StudentSerializer):
