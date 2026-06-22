@@ -131,7 +131,12 @@ class QuestionSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "version_number", "created_at", "organization", "created_by"]
 
     def validate_metadata(self, value):
-        """Valida que correct_keys estén dentro de las opciones disponibles."""
+        """Valida y normaliza las respuestas correctas de opción múltiple.
+
+        Acepta respuestas únicas o múltiples en cualquier forma: lista
+        (["A","B"]) o cadena ("A, B y C", "A,C", "B"). Separa las claves
+        individuales (A–E) y normaliza `correct_keys`/`correct_key` en el metadata.
+        """
         if not value:
             return value
         qtype = self.initial_data.get("question_type", "")
@@ -140,24 +145,27 @@ class QuestionSerializer(serializers.ModelSerializer):
 
         options = value.get("options", [])
         option_keys = {str(o.get("key", "")).upper() for o in options if o.get("key")}
-
-        correct_keys = value.get("correct_keys") or []
-        if correct_keys:
-            invalid = [k for k in correct_keys if str(k).upper() not in option_keys]
-            if invalid:
-                raise serializers.ValidationError(
-                    f"Las respuestas correctas {invalid} no existen en las opciones disponibles ({', '.join(sorted(option_keys))})."
-                )
-        elif value.get("correct_key"):
-            ck = str(value["correct_key"]).upper()
-            if ck not in option_keys:
-                raise serializers.ValidationError(
-                    f"La respuesta correcta '{ck}' no existe en las opciones disponibles ({', '.join(sorted(option_keys))})."
-                )
-
         if len(option_keys) < 2:
             raise serializers.ValidationError("Debe haber al menos 2 opciones.")
 
+        raw = value.get("correct_keys") or value.get("correct_key") or []
+        if isinstance(raw, str):
+            raw = [raw]
+        # Extrae letras A–E (todo lo demás —comas, espacios, la "y"— es separador)
+        extracted = {
+            g.upper()
+            for item in raw
+            for g in re.split(r"[^A-Ea-e]+", str(item))
+            if g
+        }
+        keys = extracted & option_keys
+        if not keys:
+            raise serializers.ValidationError(
+                f"Selecciona al menos una respuesta correcta válida ({', '.join(sorted(option_keys))})."
+            )
+
+        value["correct_keys"] = sorted(keys)
+        value["correct_key"] = ",".join(sorted(keys))
         return value
 
     def create(self, validated_data):
