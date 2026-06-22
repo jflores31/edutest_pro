@@ -73,7 +73,20 @@ class StudentViewSet(viewsets.ModelViewSet):
         return qs.order_by("course__name", "last_name", "first_name")
 
     def perform_create(self, serializer):
-        serializer.save(organization=self.request.user.organization)
+        from django.db import IntegrityError
+        from rest_framework.exceptions import ValidationError
+        try:
+            serializer.save(organization=self.request.user.organization)
+        except IntegrityError:
+            raise ValidationError({"code": ["Ya existe un alumno con este DNI en tu organización."]})
+
+    def perform_update(self, serializer):
+        from django.db import IntegrityError
+        from rest_framework.exceptions import ValidationError
+        try:
+            serializer.save()
+        except IntegrityError:
+            raise ValidationError({"code": ["Ya existe un alumno con este DNI en tu organización."]})
 
     @action(detail=False, methods=["post"], url_path="bulk")
     def bulk(self, request):
@@ -105,11 +118,14 @@ class StudentViewSet(viewsets.ModelViewSet):
         skipped = []
         with transaction.atomic():
             for item in item_ser.validated_data:
+                # Dedup by (organization, code): code is unique per org, so a code
+                # that already exists in another course must not trigger an
+                # IntegrityError (which would abort the whole transaction).
                 _, was_created = Student.objects.get_or_create(
-                    course=course,
+                    organization=request.user.organization,
                     code=item["code"],
                     defaults={
-                        "organization": request.user.organization,
+                        "course": course,
                         "first_name": item["first_name"],
                         "last_name": item["last_name"],
                         "email": item.get("email", ""),

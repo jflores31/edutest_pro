@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../../layout';
 import { Button, Icon, Badge, Card, Input, Avatar, Skeleton } from '../../design-system';
 import { students as studentsApi, courses as coursesApi } from '../../services/api';
+import { ConfirmModal } from '../../features/shared/ConfirmModal';
 import { formatRelative } from '../../utils/formatters';
 
 function EditStudentModal({ student, courses, onSave, onClose }) {
@@ -197,6 +198,8 @@ export default function StudentsListPage() {
   const [editStudent, setEditStudent] = useState(null);
   const [showImport, setShowImport] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -248,6 +251,21 @@ export default function StudentsListPage() {
       setError(e.message);
     } finally {
       setExporting(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setError('');
+    try {
+      await studentsApi.delete(deleteTarget.id);
+      setStudents(prev => prev.filter(s => s.id !== deleteTarget.id));
+      setDeleteTarget(null);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -418,6 +436,9 @@ export default function StudentsListPage() {
                         <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setEditStudent(s); }}>
                           Editar
                         </Button>
+                        <Button variant="ghost" size="sm" title="Eliminar" onClick={e => { e.stopPropagation(); setDeleteTarget(s); }}>
+                          <Icon name="trash" size={14} className="text-danger" />
+                        </Button>
                         <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); navigate(`/teacher/students/${s.id}`); }}>
                           <Icon name="chevron-right" size={14} />
                         </Button>
@@ -466,6 +487,17 @@ export default function StudentsListPage() {
           onDone={load}
         />
       )}
+
+      <ConfirmModal
+        open={!!deleteTarget}
+        title="Eliminar alumno"
+        message={deleteTarget
+          ? `¿Eliminar a ${deleteTarget.firstName} ${deleteTarget.lastName} (DNI ${deleteTarget.code})? Sus intentos quedarán en el historial sin vínculo. Esta acción no se puede deshacer.`
+          : ''}
+        confirmLabel={deleting ? 'Eliminando…' : 'Eliminar'}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

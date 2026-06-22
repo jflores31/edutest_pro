@@ -352,6 +352,21 @@ class StudentSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_at", "organization"]
 
+    def validate_code(self, value):
+        """El DNI/código es único por organización (clean 400 en vez de 500)."""
+        request = self.context.get("request")
+        org = getattr(getattr(request, "user", None), "organization", None)
+        if org is None:
+            return value
+        qs = Student.objects.filter(organization=org, code=value)
+        if self.instance is not None:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError(
+                "Ya existe un alumno con este DNI en tu organización."
+            )
+        return value
+
     def get_full_name(self, obj):
         return f"{obj.first_name} {obj.last_name}"
 

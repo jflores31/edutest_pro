@@ -148,11 +148,26 @@ async function request(path, options = {}) {
 // ============================================================
 // HTTP helpers
 // ============================================================
+
+// Extracts a human-readable message from a DRF/JSON error body:
+// { detail }, { error }, or DRF field errors like { code: ["..."] }.
+function errorMessage(data, res, path) {
+  if (data?.detail) return data.detail;
+  if (data?.error) return data.error;
+  if (data && typeof data === 'object') {
+    for (const v of Object.values(data)) {
+      if (Array.isArray(v) && v.length && typeof v[0] === 'string') return v[0];
+      if (typeof v === 'string') return v;
+    }
+  }
+  return `${res.status} ${path}`;
+}
+
 async function get(path) {
   const res = await request(path);
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.detail || `${res.status} ${path}`);
+    throw new Error(errorMessage(data, res, path));
   }
   return res.json();
 }
@@ -179,7 +194,7 @@ async function post(path, body) {
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.detail || `${res.status} ${path}`);
+    throw new Error(errorMessage(data, res, path));
   }
   return res.status === 204 ? null : res.json();
 }
@@ -191,7 +206,7 @@ async function patch(path, body) {
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.detail || `${res.status} ${path}`);
+    throw new Error(errorMessage(data, res, path));
   }
   return res.status === 204 ? null : res.json();
 }
@@ -200,7 +215,7 @@ async function del(path) {
   const res = await request(path, { method: 'DELETE' });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.detail || `${res.status} ${path}`);
+    throw new Error(errorMessage(data, res, path));
   }
   return res.status === 204 ? null : res.json();
 }
@@ -227,7 +242,7 @@ async function upload(path, formData) {
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      throw new Error(data.detail || `${res.status} ${path}`);
+      throw new Error(errorMessage(data, res, path));
     }
     return res.json();
   } catch (err) {
