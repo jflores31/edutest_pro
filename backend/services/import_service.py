@@ -48,7 +48,7 @@ logger = logging.getLogger("edutest.import")
 # ---------------------------------------------------------------------------
 
 REQUIRED_COLUMNS: frozenset[str] = frozenset({"text", "correct_answer"})
-OPTIONAL_COLUMNS: frozenset[str] = frozenset({"option_a", "option_b", "option_c", "option_d", "category", "explanation", "type"})
+OPTIONAL_COLUMNS: frozenset[str] = frozenset({"option_a", "option_b", "option_c", "option_d", "option_e", "category", "explanation", "type"})
 ALL_KNOWN_COLUMNS: frozenset[str] = REQUIRED_COLUMNS | OPTIONAL_COLUMNS
 
 # Mapa de nombres en español → nombres internos (minúscula normalizada)
@@ -62,6 +62,8 @@ COLUMN_ALIASES: dict[str, str] = {
     "opcion c": "option_c",
     "opción d": "option_d",
     "opcion d": "option_d",
+    "opción e": "option_e",
+    "opcion e": "option_e",
     "respuesta correcta": "correct_answer",
     "explicación": "explanation",
     "explicacion": "explanation",
@@ -153,7 +155,7 @@ MAX_ROWS: int = 2_000
 SUPPORTED_EXTENSIONS: frozenset[str] = frozenset({".csv", ".xlsx"})
 
 # Opciones válidas para MULTIPLE_CHOICE
-VALID_OPTION_KEYS: frozenset[str] = frozenset({"A", "B", "C", "D"})
+VALID_OPTION_KEYS: frozenset[str] = frozenset({"A", "B", "C", "D", "E"})
 
 
 # ---------------------------------------------------------------------------
@@ -275,7 +277,7 @@ class ImportService:
         rows = list(self._parse_file(file))
         errors = self.validate_file(self._rewind(file))
 
-        _PREVIEW_COLS = ("text", "option_a", "option_b", "option_c", "option_d", "correct_answer", "category")
+        _PREVIEW_COLS = ("text", "option_a", "option_b", "option_c", "option_d", "option_e", "correct_answer", "category")
         preview_rows = [
             {k: v for k, v in row.items() if k in _PREVIEW_COLS}
             for row in rows[:10]
@@ -331,6 +333,7 @@ class ImportService:
                 "option_b": row.get("option_b", ""),
                 "option_c": row.get("option_c", ""),
                 "option_d": row.get("option_d", ""),
+                "option_e": row.get("option_e", ""),
                 "correct_answer": row.get("correct_answer", ""),
                 "category": row.get("category", ""),
                 "explanation": row.get("explanation", ""),
@@ -367,7 +370,7 @@ class ImportService:
 
             if question_type == "MULTIPLE_CHOICE":
                 options_present = [
-                    k for k in ("option_a", "option_b", "option_c", "option_d")
+                    k for k in ("option_a", "option_b", "option_c", "option_d", "option_e")
                     if row.get(k, "").strip()
                 ]
                 if len(options_present) < 2:
@@ -379,7 +382,7 @@ class ImportService:
                 else:
                     correct_keys = self._parse_correct_answer_keys(correct)
                     defined_keys = {
-                        k.upper() for k in ("A", "B", "C", "D")
+                        k.upper() for k in ("A", "B", "C", "D", "E")
                         if row.get(f"option_{k.lower()}", "").strip()
                     }
                     invalid = correct_keys - defined_keys
@@ -411,6 +414,7 @@ class ImportService:
                 "option_b": row.get("option_b", ""),
                 "option_c": row.get("option_c", ""),
                 "option_d": row.get("option_d", ""),
+                "option_e": row.get("option_e", ""),
                 "correct_answer": row.get("correct_answer", ""),
                 "category": row.get("category", ""),
                 "explanation": row.get("explanation", ""),
@@ -733,7 +737,7 @@ class ImportService:
 
         # Verificar que al menos dos opciones estén presentes
         options_present = [
-            key for key in ("option_a", "option_b", "option_c", "option_d")
+            key for key in ("option_a", "option_b", "option_c", "option_d", "option_e")
             if row.get(key, "").strip()
         ]
         if len(options_present) < 2:
@@ -745,13 +749,34 @@ class ImportService:
                 )
             )
 
-        # Solo verificar que correct_answer no esté vacío
-        # Acepta respuesta única (A) o múltiple (A y B, A, B y C)
+        # correct_answer no vacío + que las letras correspondan a opciones definidas.
+        # Acepta respuesta única (A) o múltiple (A y B, A, B y C). Letras válidas A–E.
         correct = row.get("correct_answer", "").strip()
         if not correct:
             errors.append(
                 RowError(row=row_num, column="correct_answer", message="correct_answer es requerido.")
             )
+        else:
+            correct_keys = self._parse_correct_answer_keys(correct.upper())
+            defined = {
+                k for k in ("A", "B", "C", "D", "E")
+                if row.get(f"option_{k.lower()}", "").strip()
+            }
+            invalid = correct_keys - defined
+            if not correct_keys:
+                errors.append(RowError(
+                    row=row_num, column="correct_answer",
+                    message=f"La respuesta '{correct}' no corresponde a ninguna opción A–E.",
+                ))
+            elif invalid:
+                miss = sorted(invalid)[0]
+                errors.append(RowError(
+                    row=row_num, column="correct_answer",
+                    message=(
+                        f"La respuesta '{', '.join(sorted(invalid))}' no tiene una opción "
+                        f"definida en esta pregunta (¿falta la columna 'Opción {miss}'?)."
+                    ),
+                ))
 
         return errors
 
@@ -797,7 +822,7 @@ class ImportService:
         bugs that would pick up letters from words like 'and' or 'y'.
         """
         import re
-        letters = {g.upper() for g in re.split(r"[^A-Da-d]+", correct_raw) if g}
+        letters = {g.upper() for g in re.split(r"[^A-Ea-e]+", correct_raw) if g}
         return frozenset(l for l in letters if l in VALID_OPTION_KEYS)
 
     @transaction.atomic
@@ -893,7 +918,7 @@ class ImportService:
             correct_keys = self._parse_correct_answer_keys(correct_raw)
             seen = set()
             options = []
-            for key in ("A", "B", "C", "D"):
+            for key in ("A", "B", "C", "D", "E"):
                 col = f"option_{key.lower()}"
                 text = row.get(col, "").strip()
                 if text:

@@ -32,7 +32,7 @@ const BACKEND_TYPE = {
 
 function mapQuestionToApi(q) {
   const options = (q.options || []).map((o, i) => ({
-    key: 'ABCD'[i],
+    key: String.fromCharCode(65 + i),
     text: o.text,
   }));
 
@@ -150,8 +150,8 @@ function QuestionEditor({ question, index, onUpdate, onDelete }) {
                     <input
                       type="radio"
                       name={`correct-${question.id}`}
-                      checked={question.correctKey === 'ABCD'[i]}
-                      onChange={() => updateField('correctKey', 'ABCD'[i])}
+                      checked={question.correctKey === String.fromCharCode(65 + i)}
+                      onChange={() => updateField('correctKey', String.fromCharCode(65 + i))}
                       title="Marcar como correcta"
                     />
                     <span className="text-xs text-fg-3 w-6">{String.fromCharCode(65 + i)}.</span>

@@ -62,10 +62,10 @@ function EditField({ value, onChange, multiline, placeholder, className = '' }) 
 function AnswerSelector({ row, onChange }) {
   if (row.question_type === 'MULTIPLE_CHOICE') {
     const correctSet = new Set(
-      (row.correct_answer || '').toUpperCase().split(/[^A-D]+/).filter(k => /^[A-D]$/.test(k))
+      (row.correct_answer || '').toUpperCase().split(/[^A-E]+/).filter(k => /^[A-E]$/.test(k))
     );
     const defined = new Set(
-      ['A', 'B', 'C', 'D'].filter(k => (row[`option_${k.toLowerCase()}`] || '').trim())
+      ['A', 'B', 'C', 'D', 'E'].filter(k => (row[`option_${k.toLowerCase()}`] || '').trim())
     );
 
     function toggle(key) {
@@ -76,7 +76,7 @@ function AnswerSelector({ row, onChange }) {
 
     return (
       <div className="flex gap-3 flex-wrap">
-        {['A', 'B', 'C', 'D'].map(k => {
+        {['A', 'B', 'C', 'D', 'E'].map(k => {
           const hasOption = defined.has(k);
           const isCorrect = correctSet.has(k);
           return (
@@ -136,7 +136,7 @@ function QuestionCard({ row, index, dispatch }) {
   }
 
   const hasErrors = row._errors.length > 0;
-  const optionKeys = ['A', 'B', 'C', 'D'];
+  const optionKeys = ['A', 'B', 'C', 'D', 'E'];
 
   return (
     <div className={`border rounded-xl transition-colors ${
@@ -251,7 +251,7 @@ function QuestionCard({ row, index, dispatch }) {
             <label className="block text-xs font-semibold text-fg-2 mb-1 uppercase tracking-wide">Tipo</label>
             <select
               value={row.question_type}
-              onChange={e => update({ question_type: e.target.value, correct_answer: '', option_a: '', option_b: '', option_c: '', option_d: '' })}
+              onChange={e => update({ question_type: e.target.value, correct_answer: '', option_a: '', option_b: '', option_c: '', option_d: '', option_e: '' })}
               className="bg-bg-2 border border-line rounded-xl px-3 py-2 text-sm text-fg-0 outline-none focus:border-accent"
             >
               <option value="MULTIPLE_CHOICE">Opción múltiple</option>

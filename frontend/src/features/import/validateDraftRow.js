@@ -13,7 +13,7 @@ export function validateDraftRow(row) {
   const qtype = row.question_type || 'MULTIPLE_CHOICE';
 
   if (qtype === 'MULTIPLE_CHOICE') {
-    const definedOptions = ['option_a', 'option_b', 'option_c', 'option_d'].filter(
+    const definedOptions = ['option_a', 'option_b', 'option_c', 'option_d', 'option_e'].filter(
       k => (row[k] || '').trim()
     );
     if (definedOptions.length < 2) {
@@ -25,9 +25,9 @@ export function validateDraftRow(row) {
       errors.push({ field: 'correct_answer', message: 'Selecciona la respuesta correcta' });
     } else {
       const definedKeys = new Set(
-        ['A', 'B', 'C', 'D'].filter(k => (row[`option_${k.toLowerCase()}`] || '').trim())
+        ['A', 'B', 'C', 'D', 'E'].filter(k => (row[`option_${k.toLowerCase()}`] || '').trim())
       );
-      const correctKeys = correct.toUpperCase().split(/[^A-D]+/).filter(k => /^[A-D]$/.test(k));
+      const correctKeys = correct.toUpperCase().split(/[^A-E]+/).filter(k => /^[A-E]$/.test(k));
       for (const k of correctKeys) {
         if (!definedKeys.has(k)) {
           errors.push({ field: 'correct_answer', message: `La respuesta '${k}' no tiene opción definida` });

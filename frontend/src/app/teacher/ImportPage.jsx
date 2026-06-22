@@ -69,23 +69,24 @@ function DownloadTemplate({ columns, filename, examples }) {
 // ── Import Exámenes ─────────────────────────────────────────────────────────
 
 const EXAM_COLUMNS = [
-  'Pregunta', 'Opción A', 'Opción B', 'Opción C', 'Opción D',
+  'Pregunta', 'Opción A', 'Opción B', 'Opción C', 'Opción D', 'Opción E',
   'Respuesta Correcta', 'Explicación', 'Tema',
 ];
 // El tipo se infiere de la fila (no hay columna "Tipo"):
 //  - opción única: opciones llenas + 1 letra correcta
-//  - opción múltiple: opciones llenas + varias correctas (A,C)
+//  - opción múltiple: opciones llenas + varias correctas (B,E)
 //  - verdadero/falso: opciones vacías + Verdadero/Falso
+// Hasta 5 opciones (A–E); deja vacías las que no uses.
 const EXAM_EXAMPLES = [
   ['¿Cuál es la capa de transporte del modelo OSI?',
-   'Capa de Red', 'Capa de Transporte', 'Capa de Sesión', 'Capa de Aplicación',
+   'Capa de Red', 'Capa de Transporte', 'Capa de Sesión', 'Capa de Aplicación', 'Capa Física',
    'B', 'La capa de transporte gestiona TCP y UDP', 'Redes'],
   ['El modelo OSI tiene 7 capas',
-   '', '', '', '',
+   '', '', '', '', '',
    'Verdadero', 'El modelo OSI define 7 capas', 'Redes'],
-  ['Marca los protocolos de la capa de transporte',
-   'TCP', 'UDP', 'IP', 'HTTP',
-   'A,B', 'TCP y UDP operan en la capa de transporte', 'Redes'],
+  ['Marca los protocolos de la capa de transporte (elige 2)',
+   'Ethernet', 'TCP', 'IP', 'HTTP', 'UDP',
+   'B,E', 'TCP y UDP operan en la capa de transporte', 'Redes'],
 ];
 
 // ── Format info card (shared) ────────────────────────────────────────────────
@@ -126,8 +127,8 @@ function FormatInfoCard() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1 text-xs text-fg-2">
             <p><span className="text-fg-0 font-medium">Pregunta</span> — Enunciado de la pregunta <span className="text-danger">*</span></p>
-            <p><span className="text-fg-0 font-medium">Opción A / B / C / D</span> — Alternativas (déjalas vacías en Verdadero/Falso)</p>
-            <p><span className="text-fg-0 font-medium">Respuesta Correcta</span> — Letra de la opción, o <span className="font-mono">Verdadero</span>/<span className="font-mono">Falso</span> <span className="text-danger">*</span></p>
+            <p><span className="text-fg-0 font-medium">Opción A … E</span> — Hasta 5 alternativas (deja vacías las que no uses; todas vacías en Verdadero/Falso)</p>
+            <p><span className="text-fg-0 font-medium">Respuesta Correcta</span> — Letra(s) <span className="font-mono">A–E</span>, o <span className="font-mono">Verdadero</span>/<span className="font-mono">Falso</span> <span className="text-danger">*</span></p>
             <p><span className="text-fg-0 font-medium">Explicación</span> — Justificación de la respuesta (opcional)</p>
             <p><span className="text-fg-0 font-medium">Tema</span> — Categoría o tema de la pregunta (opcional)</p>
           </div>
@@ -142,10 +143,10 @@ function FormatInfoCard() {
           </div>
 
           <div className="mt-4 p-3 bg-bg-3 rounded-xl space-y-1.5">
-            <p className="text-2xs text-fg-3 font-medium">Ejemplos:</p>
-            <code className="block text-2xs font-mono text-fg-1 break-all">"¿Capa de transporte del modelo OSI?","Red","Transporte","Sesión","Aplicación","B","…","Redes"</code>
-            <code className="block text-2xs font-mono text-fg-1 break-all">"El modelo OSI tiene 7 capas","","","","","Verdadero","…","Redes"</code>
-            <code className="block text-2xs font-mono text-fg-1 break-all">"Marca los de transporte","TCP","UDP","IP","HTTP","A,B","…","Redes"</code>
+            <p className="text-2xs text-fg-3 font-medium">Ejemplos (Pregunta, A, B, C, D, E, Respuesta, Explicación, Tema):</p>
+            <code className="block text-2xs font-mono text-fg-1 break-all">"¿Capa de transporte?","Red","Transporte","Sesión","Aplicación","Física","B","…","Redes"</code>
+            <code className="block text-2xs font-mono text-fg-1 break-all">"El modelo OSI tiene 7 capas","","","","","","Verdadero","…","Redes"</code>
+            <code className="block text-2xs font-mono text-fg-1 break-all">"Protocolos de transporte (elige 2)","Ethernet","TCP","IP","HTTP","UDP","B,E","…","Redes"</code>
           </div>
 
           <div className="mt-3 p-3 bg-warn/5 border border-warn/20 rounded-xl">
