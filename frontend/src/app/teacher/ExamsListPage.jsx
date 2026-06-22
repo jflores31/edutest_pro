@@ -89,10 +89,6 @@ export default function ExamsListPage() {
   const handleEdit = (exam) => navigate(`/teacher/exams/${exam.id}/edit`);
 
   const handleDelete = (exam) => {
-    if (exam.attempts > 0) {
-      toast.error('No se puede eliminar un examen con intentos. Archívalo en su lugar.');
-      return;
-    }
     setDeleteTarget(exam);
   };
 
@@ -100,7 +96,7 @@ export default function ExamsListPage() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      await examsApi.delete(deleteTarget.id);
+      await examsApi.delete(deleteTarget.id, (deleteTarget.attempts || 0) > 0);
       setExams(prev => prev.filter(e => e.id !== deleteTarget.id));
       toast.success(`"${deleteTarget.title}" eliminado`);
       setDeleteTarget(null);
@@ -187,7 +183,11 @@ export default function ExamsListPage() {
       <ConfirmModal
         open={!!deleteTarget}
         title="Eliminar examen"
-        message={deleteTarget ? `¿Eliminar "${deleteTarget.title}"? Esta acción no se puede deshacer.` : ''}
+        message={deleteTarget
+          ? ((deleteTarget.attempts || 0) > 0
+              ? `"${deleteTarget.title}" tiene ${deleteTarget.attempts} intento(s). Se eliminarán también sus resultados. Esta acción no se puede deshacer.`
+              : `¿Eliminar "${deleteTarget.title}"? Esta acción no se puede deshacer.`)
+          : ''}
         confirmLabel={deleting ? 'Eliminando…' : 'Eliminar'}
         onConfirm={confirmDelete}
         onCancel={() => setDeleteTarget(null)}

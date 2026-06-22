@@ -80,23 +80,25 @@ class ExamViewSet(viewsets.ModelViewSet):
         if request.user.role not in ("TEACHER", "ADMIN"):
             return Response({"detail": "Permission denied."}, status=status.HTTP_403_FORBIDDEN)
         exam = self.get_object()
-        if exam.attempts.exists():
+        force = request.query_params.get("force", "").lower() in ("true", "1", "yes")
+
+        if not force and (exam.attempts.exists() or exam.snapshots.exists()):
             return Response(
                 {
-                    "detail": "No se puede eliminar un examen con intentos registrados.",
+                    "detail": "No se puede eliminar un examen con intentos registrados. "
+                              "Archívalo, o elimínalo de todos modos (se perderán los intentos).",
                     "can_archive": True,
                 },
                 status=status.HTTP_409_CONFLICT,
             )
-        if exam.snapshots.exists():
-            return Response(
-                {
-                    "detail": "No se puede eliminar un examen con snapshots. Archívalo en su lugar.",
-                    "can_archive": True,
-                },
-                status=status.HTTP_409_CONFLICT,
-            )
-        exam.delete()
+
+        from django.db import transaction
+        with transaction.atomic():
+            # force: borra dependientes en orden seguro. Attempt elimina en cascada
+            # sus AttemptAnswer/ProctoringEvent; el Exam elimina sus ExamQuestion.
+            exam.attempts.all().delete()
+            exam.snapshots.all().delete()
+            exam.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["patch"], url_path="visibility")

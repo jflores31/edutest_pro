@@ -283,7 +283,7 @@ export const exams = {
   get: (id) => get(`/exams/${id}/`),
   create: (data) => post('/exams/', data),
   update: (id, data) => patch(`/exams/${id}/`, data),
-  delete: (id) => del(`/exams/${id}/`),
+  delete: (id, force = false) => del(`/exams/${id}/${force ? '?force=true' : ''}`),
   publish: (id) => post(`/exams/${id}/publish/`),
   unpublish: (id) => post(`/exams/${id}/unpublish/`),
   archive: (id) => post(`/exams/${id}/archive/`),
