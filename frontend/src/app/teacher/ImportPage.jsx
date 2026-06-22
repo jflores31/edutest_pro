@@ -167,20 +167,23 @@ function FormatInfoCard() {
 
 // ── Import Success Screen ────────────────────────────────────────────────────
 
-function ImportSuccessScreen({ examTitle, questionsCount, skipped = 0, onReset, onGoToEditor }) {
+function ImportSuccessScreen({ examTitle, added = 0, duplicates = 0, skipped = 0, appended = false, onReset, onGoToEditor }) {
   return (
     <Card padding="lg">
       <div className="text-center py-8">
         <div className="grid h-20 w-20 place-items-center rounded-full bg-ok/10 mx-auto mb-5">
           <Icon name="check" size={32} className="text-ok" />
         </div>
-        <h3 className="text-2xl font-semibold text-fg-0 mb-2">¡Examen creado!</h3>
+        <h3 className="text-2xl font-semibold text-fg-0 mb-2">{appended ? '¡Preguntas agregadas!' : '¡Examen creado!'}</h3>
         <p className="text-base text-fg-1 mb-1">
           <span className="font-bold text-fg-0">"{examTitle}"</span>
         </p>
         <p className="text-sm text-fg-2 mb-1">
-          <span className="font-bold text-ok">{questionsCount}</span> preguntas importadas correctamente
+          <span className="font-bold text-ok">{added}</span> pregunta(s) {appended ? 'agregada(s)' : 'importada(s)'} correctamente
         </p>
+        {duplicates > 0 && (
+          <p className="text-xs text-fg-3 mb-1">{duplicates} duplicada(s) omitida(s) (ya estaban en el examen).</p>
+        )}
         {skipped > 0 && (
           <p className="text-xs text-warn mb-1">{skipped} pregunta(s) omitida(s) por errores (revisa el formato/respuestas).</p>
         )}
@@ -196,6 +199,61 @@ function ImportSuccessScreen({ examTitle, questionsCount, skipped = 0, onReset, 
         </div>
       </div>
     </Card>
+  );
+}
+
+// Selector de destino: crear examen nuevo (título) o agregar a uno existente (selector).
+function ImportTargetPicker({ mode, setMode, examTitle, setExamTitle, exams, selectedExamId, setSelectedExamId, clearError }) {
+  return (
+    <div className="mb-6">
+      <div className="inline-flex rounded-xl border border-line overflow-hidden mb-3">
+        {[['new', 'Examen nuevo'], ['existing', 'Examen existente']].map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => { setMode(key); clearError(); }}
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
+              mode === key ? 'bg-accent text-bg-1' : 'text-fg-2 hover:text-fg-0 hover:bg-bg-2'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {mode === 'new' ? (
+        <div>
+          <label className="block text-sm font-semibold text-fg-0 mb-2">
+            Título del examen <span className="text-danger">*</span>
+          </label>
+          <input
+            type="text"
+            value={examTitle}
+            onChange={e => { setExamTitle(e.target.value); clearError(); }}
+            placeholder="Ej: Examen de Matemáticas - Unidad 3"
+            className="w-full bg-transparent border-2 border-line rounded-xl px-4 py-3 text-fg-0 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+          />
+          <p className="text-xs text-fg-3 mt-1">Mínimo 3 caracteres. Este será el nombre visible del examen.</p>
+        </div>
+      ) : (
+        <div>
+          <label className="block text-sm font-semibold text-fg-0 mb-2">
+            Examen destino <span className="text-danger">*</span>
+          </label>
+          <select
+            value={selectedExamId}
+            onChange={e => { setSelectedExamId(e.target.value); clearError(); }}
+            className="w-full bg-transparent border-2 border-line rounded-xl px-4 py-3 text-fg-0 text-sm outline-none focus:border-accent transition-colors"
+          >
+            <option value="">Selecciona un examen…</option>
+            {exams.map(ex => <option key={ex.id} value={ex.id}>{ex.title}</option>)}
+          </select>
+          <p className="text-xs text-fg-3 mt-1">
+            Las preguntas se añaden al examen; las que ya existan (mismo enunciado) se omiten.
+          </p>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -244,8 +302,19 @@ function ImportExamsTab() {
   const [previewData, setPreviewData] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [successInfo, setSuccessInfo] = useState(null);
+  const [mode, setMode] = useState('new');          // 'new' | 'existing'
+  const [exams, setExams] = useState([]);
+  const [selectedExamId, setSelectedExamId] = useState('');
   const inputRef = useRef(null);
   const fileRef = useRef(null);
+
+  // Carga los exámenes disponibles la primera vez que se elige "Examen existente".
+  useEffect(() => {
+    if (mode !== 'existing' || exams.length) return;
+    examsApi.list({ include_archived: false })
+      .then(d => setExams(Array.isArray(d) ? d : (d?.results ?? [])))
+      .catch(() => {});
+  }, [mode, exams.length]);
 
   function reset() {
     setPhase('idle');
@@ -281,8 +350,13 @@ function ImportExamsTab() {
   // Step 2 → Create exam + questions (combined endpoint)
   async function handleCreate() {
     if (!fileRef.current) return;
-    if (!examTitle.trim() || examTitle.trim().length < 3) {
-      setErrorMsg('El título del examen debe tener al menos 3 caracteres.');
+    if (mode === 'new') {
+      if (!examTitle.trim() || examTitle.trim().length < 3) {
+        setErrorMsg('El título del examen debe tener al menos 3 caracteres.');
+        return;
+      }
+    } else if (!selectedExamId) {
+      setErrorMsg('Selecciona el examen al que agregar las preguntas.');
       return;
     }
     setPhase('creating');
@@ -290,14 +364,17 @@ function ImportExamsTab() {
 
     const form = new FormData();
     form.append('file', fileRef.current);
-    form.append('title', examTitle.trim());
+    if (mode === 'new') form.append('title', examTitle.trim());
+    else form.append('exam_id', selectedExamId);
 
     try {
       const data = await examsApi.importExam(form);
       setSuccessInfo({
         examTitle: data.exam_title,
-        questionsCount: data.questions_created || 0,
-        skipped: Math.max(0, (data.total_rows || 0) - (data.questions_created || 0)),
+        added: data.added ?? data.questions_created ?? 0,
+        duplicates: data.duplicates ?? 0,
+        skipped: data.error_count ?? Math.max(0, (data.total_rows || 0) - (data.questions_created || 0)),
+        appended: !!data.appended,
         examId: data.exam_id,
       });
       setPhase('done');
@@ -312,9 +389,9 @@ function ImportExamsTab() {
     return (
       <div className="text-center py-12">
         <div className="w-10 h-10 border-[3px] border-accent border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-fg-0 mb-1">Creando examen</h3>
+        <h3 className="text-lg font-semibold text-fg-0 mb-1">{mode === 'existing' ? 'Agregando preguntas' : 'Creando examen'}</h3>
         <p className="text-sm text-fg-2">
-          Importando preguntas y creando "{examTitle}"…
+          {mode === 'existing' ? 'Importando preguntas al examen seleccionado…' : `Importando preguntas y creando "${examTitle}"…`}
         </p>
       </div>
     );
@@ -325,8 +402,10 @@ function ImportExamsTab() {
         <WizardSteps phase="done" />
         <ImportSuccessScreen
           examTitle={successInfo.examTitle}
-          questionsCount={successInfo.questionsCount}
+          added={successInfo.added}
+          duplicates={successInfo.duplicates}
           skipped={successInfo.skipped}
+          appended={successInfo.appended}
           examId={successInfo.examId}
           onReset={reset}
           onGoToEditor={() => navigate(`/teacher/exams/${successInfo.examId}/edit`)}
@@ -394,7 +473,7 @@ function ImportExamsTab() {
                   onClick={handleCreate}
                   icon={<Icon name="check" size={14} />}
                 >
-                  Crear examen
+                  {mode === 'existing' ? 'Agregar preguntas' : 'Crear examen'}
                 </Button>
               </div>
             </div>
@@ -402,16 +481,12 @@ function ImportExamsTab() {
             {errorMsg && (
               <div className="mb-3 p-3 bg-danger/10 border border-danger/30 text-danger text-sm rounded-xl">{errorMsg}</div>
             )}
-            <div className="mb-4">
-              <label className="block text-xs font-semibold text-fg-1 mb-1">Título del examen <span className="text-danger">*</span></label>
-              <input
-                type="text"
-                value={examTitle}
-                onChange={e => { setExamTitle(e.target.value); setErrorMsg(''); }}
-                placeholder="Ej: Examen de Redes — Unidad 3"
-                className="w-full bg-transparent border-2 border-line rounded-xl px-3 py-2 text-fg-0 text-sm outline-none focus:border-accent transition-colors"
-              />
-            </div>
+            <ImportTargetPicker
+              mode={mode} setMode={setMode}
+              examTitle={examTitle} setExamTitle={setExamTitle}
+              exams={exams} selectedExamId={selectedExamId} setSelectedExamId={setSelectedExamId}
+              clearError={() => setErrorMsg('')}
+            />
 
             {/* Preview table */}
             <div className="max-h-96 overflow-y-auto border border-line rounded-xl">
@@ -467,21 +542,13 @@ function ImportExamsTab() {
       <WizardSteps phase={phase} />
       <div className="space-y-4">
         <Card padding="lg">
-          {/* Exam title input */}
-          <div className="mb-6">
-            <label className="block text-sm font-semibold text-fg-0 mb-2">
-              Título del examen <span className="text-danger">*</span>
-            </label>
-            <input
-              type="text"
-              value={examTitle}
-              onChange={e => { setExamTitle(e.target.value); setErrorMsg(''); }}
-              placeholder="Ej: Examen de Matemáticas - Unidad 3"
-              className="w-full bg-transparent border-2 border-line rounded-xl px-4 py-3 text-fg-0 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
-              autoFocus
-            />
-            <p className="text-xs text-fg-3 mt-1">Mínimo 3 caracteres. Este será el nombre visible del examen.</p>
-          </div>
+          {/* Destino: examen nuevo o existente */}
+          <ImportTargetPicker
+            mode={mode} setMode={setMode}
+            examTitle={examTitle} setExamTitle={setExamTitle}
+            exams={exams} selectedExamId={selectedExamId} setSelectedExamId={setSelectedExamId}
+            clearError={() => setErrorMsg('')}
+          />
 
           {/* Upload zone */}
           <UploadZone

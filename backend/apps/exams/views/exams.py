@@ -1,6 +1,7 @@
 import logging
+from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Avg, Count, F
+from django.db.models import Avg, Count, F, Max
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -377,9 +378,20 @@ class ExamViewSet(viewsets.ModelViewSet):
                 result = service.dry_run(file)
                 return Response(result.to_dict())
 
-            title = request.data.get("title", "").strip()
-            if len(title) < 3:
-                return Response({"error": "El título debe tener al menos 3 caracteres."}, status=status.HTTP_400_BAD_REQUEST)
+            # Modo: agregar a un examen existente (exam_id) o crear uno nuevo (title).
+            exam_id = (request.data.get("exam_id") or "").strip()
+            target_exam = None
+            if exam_id:
+                try:
+                    target_exam = Exam.objects.get(
+                        id=exam_id, organization=request.user.organization
+                    )
+                except (Exam.DoesNotExist, ValueError, ValidationError):
+                    return Response({"error": "El examen indicado no existe."}, status=status.HTTP_404_NOT_FOUND)
+            else:
+                title = request.data.get("title", "").strip()
+                if len(title) < 3:
+                    return Response({"error": "El título debe tener al menos 3 caracteres."}, status=status.HTTP_400_BAD_REQUEST)
 
             with transaction.atomic():
                 # Tolerante: importa las preguntas válidas y reporta las inválidas
@@ -388,12 +400,13 @@ class ExamViewSet(viewsets.ModelViewSet):
                     file, request.user.organization, request.user, skip_invalid=True
                 )
 
-                exam = Exam.objects.create(
-                    organization=request.user.organization,
-                    created_by=request.user,
-                    title=title,
-                    is_published=False,
-                )
+                if target_exam is None:
+                    target_exam = Exam.objects.create(
+                        organization=request.user.organization,
+                        created_by=request.user,
+                        title=title,
+                        is_published=False,
+                    )
 
                 questions = list(
                     Question.objects.filter(
@@ -402,15 +415,41 @@ class ExamViewSet(viewsets.ModelViewSet):
                         is_active=True,
                     ).order_by("id")
                 )
-                ExamQuestion.objects.bulk_create([
-                    ExamQuestion(exam=exam, question=q, order=i + 1, points=1.0)
-                    for i, q in enumerate(questions)
-                ])
+
+                # Dedup por enunciado: contra las preguntas ya en el examen y dentro
+                # del propio lote. Las duplicadas no se enlazan y se borran del banco.
+                def _norm(text):
+                    return " ".join((text or "").split()).strip().lower()
+
+                seen = {
+                    _norm(t) for t in ExamQuestion.objects
+                    .filter(exam=target_exam)
+                    .values_list("question__question_text", flat=True)
+                }
+                order = ExamQuestion.objects.filter(exam=target_exam).aggregate(m=Max("order"))["m"] or 0
+
+                to_link, dup_ids = [], []
+                for q in questions:
+                    key = _norm(q.question_text)
+                    if key in seen:
+                        dup_ids.append(q.id)
+                        continue
+                    seen.add(key)
+                    order += 1
+                    to_link.append(ExamQuestion(exam=target_exam, question=q, order=order, points=1.0))
+
+                ExamQuestion.objects.bulk_create(to_link)
+                if dup_ids:
+                    Question.objects.filter(id__in=dup_ids).delete()
 
             return Response({
                 **result.to_dict(),
-                "exam_id": str(exam.id),
-                "exam_title": exam.title,
+                "questions_created": len(to_link),
+                "exam_id": str(target_exam.id),
+                "exam_title": target_exam.title,
+                "appended": bool(exam_id),
+                "added": len(to_link),
+                "duplicates": len(dup_ids),
             }, status=status.HTTP_201_CREATED)
 
         except ImportValidationError as exc:
