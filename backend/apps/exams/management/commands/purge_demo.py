@@ -78,4 +78,15 @@ class Command(BaseCommand):
             demo_courses.delete()
             student1.delete()                                  # integraciones en cascada
 
-        self.stdout.write(self.style.SUCCESS("✓ Datos demo borrados. admin y la organización se conservaron."))
+        # Invalida la caché del dashboard (se cachea 300 s y no se auto-invalida),
+        # si no, el dash seguiría mostrando los datos demo viejos hasta 5 min.
+        from django.core.cache import cache
+        try:
+            cache.delete_pattern("*dashboard*")
+        except Exception:
+            try:
+                cache.clear()
+            except Exception:
+                pass
+
+        self.stdout.write(self.style.SUCCESS("✓ Datos demo borrados (caché del dashboard limpiada). admin y la organización se conservaron."))
