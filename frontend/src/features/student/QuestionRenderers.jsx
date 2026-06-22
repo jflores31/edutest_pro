@@ -85,7 +85,10 @@ export function QuestionBody({ q, value, onChange }) {
   if (q.type === 'multiple_choice' || q.type === 'MULTIPLE_CHOICE_MULTIPLE')
     return <MultipleChoice q={q} value={value} onChange={onChange} />;
   if (q.type === 'MULTIPLE_CHOICE') {
-    const isMulti = Array.isArray(q.metadata?.correct_keys) && q.metadata.correct_keys.length > 1;
+    // El snapshot del alumno está saneado (sin correct_keys) y trae la pista
+    // `multiple`. Para el docente/preview, correct_keys sí está presente.
+    const isMulti = q.metadata?.multiple === true
+      || (Array.isArray(q.metadata?.correct_keys) && q.metadata.correct_keys.length > 1);
     return isMulti
       ? <MultipleChoice q={q} value={value} onChange={onChange} />
       : <SingleChoice q={q} value={value} onChange={onChange} />;
