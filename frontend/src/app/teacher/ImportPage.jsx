@@ -256,10 +256,7 @@ function ImportExamsTab() {
   // Step 1 → Upload file for preview (full_preview endpoint: all rows, full detail)
   async function handleFile(file) {
     if (!file) return;
-    if (!examTitle.trim() || examTitle.trim().length < 3) {
-      setErrorMsg('El título del examen debe tener al menos 3 caracteres.');
-      return;
-    }
+    // El título no es necesario para previsualizar; se valida al crear el examen.
     fileRef.current = file;
     setPhase('uploading');
     setErrorMsg('');
@@ -280,6 +277,10 @@ function ImportExamsTab() {
   // Step 2 → Create exam + questions (combined endpoint)
   async function handleCreate() {
     if (!fileRef.current) return;
+    if (!examTitle.trim() || examTitle.trim().length < 3) {
+      setErrorMsg('El título del examen debe tener al menos 3 caracteres.');
+      return;
+    }
     setPhase('creating');
     setErrorMsg('');
 
@@ -390,6 +391,20 @@ function ImportExamsTab() {
                   Crear examen
                 </Button>
               </div>
+            </div>
+
+            {errorMsg && (
+              <div className="mb-3 p-3 bg-danger/10 border border-danger/30 text-danger text-sm rounded-xl">{errorMsg}</div>
+            )}
+            <div className="mb-4">
+              <label className="block text-xs font-semibold text-fg-1 mb-1">Título del examen <span className="text-danger">*</span></label>
+              <input
+                type="text"
+                value={examTitle}
+                onChange={e => { setExamTitle(e.target.value); setErrorMsg(''); }}
+                placeholder="Ej: Examen de Redes — Unidad 3"
+                className="w-full bg-transparent border-2 border-line rounded-xl px-3 py-2 text-fg-0 text-sm outline-none focus:border-accent transition-colors"
+              />
             </div>
 
             {/* Preview table */}
