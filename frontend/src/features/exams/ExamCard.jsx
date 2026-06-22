@@ -77,7 +77,7 @@ export default function ExamCard({ exam, onCopyLink, onEdit, onDelete, onArchive
             </span>
             <span className="flex items-center gap-1.5">
               <Icon name="clock" size={13} className="text-fg-3" />
-              {exam.duration || 'Sin l\u00edmite'}
+              {exam.duration || 'Sin límite'}
             </span>
             <span className="flex items-center gap-1.5">
               <Icon name="users" size={13} className="text-fg-3" />
@@ -96,21 +96,21 @@ export default function ExamCard({ exam, onCopyLink, onEdit, onDelete, onArchive
               {exam.avg}%
             </div>
           ) : (
-            <div className="text-sm text-fg-3">\u2014</div>
+            <div className="text-sm text-fg-3">—</div>
           )}
         </div>
         <div className="text-center border-x border-line">
-          <div className="text-2xs text-fg-3 mb-0.5">Aprobaci\u00f3n</div>
+          <div className="text-2xs text-fg-3 mb-0.5">Aprobación</div>
           {hasAttempts ? (
             <div className={`text-lg font-bold tabular-nums ${exam.passRate >= 50 ? 'text-ok' : 'text-warn'}`}>
               {exam.passRate}%
             </div>
           ) : (
-            <div className="text-sm text-fg-3">\u2014</div>
+            <div className="text-sm text-fg-3">—</div>
           )}
         </div>
         <div className="text-center">
-          <div className="text-2xs text-fg-3 mb-0.5">\u00daltima actividad</div>
+          <div className="text-2xs text-fg-3 mb-0.5">Última actividad</div>
           <div className="text-sm font-medium text-fg-1">{exam.lastActivity}</div>
         </div>
       </div>

@@ -325,7 +325,7 @@ export default function QuestionBankPage() {
               </p>
             </div>
           ) : (
-            <table className="w-full">
+            <div className="overflow-x-auto"><table className="w-full min-w-[640px]">
               <thead>
                 <tr className="border-b border-line">
                   <th className="w-10 px-5 py-3.5">
@@ -403,7 +403,7 @@ export default function QuestionBankPage() {
                   );
                 })}
               </tbody>
-            </table>
+            </table></div>
           )}
         </Card>
       </div>

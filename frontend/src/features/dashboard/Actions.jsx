@@ -11,12 +11,12 @@ export function EmptyBanner() {
           <Icon name="chart" size={18} className="text-accent" strokeWidth={1.8} />
         </div>
         <div className="min-w-0">
-          <p className="text-sm font-medium text-fg-0">A\u00fan no hay intentos completados</p>
-          <p className="text-xs text-fg-2 truncate">Comparte el link del examen con tus alumnos para ver estad\u00edsticas.</p>
+          <p className="text-sm font-medium text-fg-0">Aún no hay intentos completados</p>
+          <p className="text-xs text-fg-2 truncate">Comparte el link del examen con tus alumnos para ver estadísticas.</p>
         </div>
       </div>
       <button onClick={() => navigate('/teacher/exams')} className="shrink-0">
-        <span className="text-sm font-medium text-accent hover:underline">Ir a ex\u00e1menes \u2192</span>
+        <span className="text-sm font-medium text-accent hover:underline">Ir a exámenes →</span>
       </button>
     </div>
   );
@@ -33,14 +33,14 @@ export function QuickActions({ stats, liveData }) {
     } else if ((stats?.exams_draft_count ?? 0) > 0) {
       base.push({ icon: 'edit', label: `${stats.exams_draft_count} borradores`, to: '/teacher/exams?filter=draft' });
     } else {
-      base.push({ icon: 'chart', label: 'Comparar ex\u00e1menes', to: '/teacher/compare' });
+      base.push({ icon: 'chart', label: 'Comparar exámenes', to: '/teacher/compare' });
     }
     base.push({ icon: 'users', label: 'Ver estudiantes', to: '/teacher/students' });
     return base;
   }, [stats, liveData]);
 
   return (
-    <Card title="Acceso r\u00e1pido" padding="sm" variant="outlined">
+    <Card title="Acceso rápido" padding="sm" variant="outlined">
       <div className="grid grid-cols-2 gap-2">
         {actions.map(a => (
           <Link

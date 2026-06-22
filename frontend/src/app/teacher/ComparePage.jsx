@@ -62,7 +62,7 @@ export default function ComparePage() {
   }, [exams, search]);
 
   const barData = (selected.size < 2 ? [] : compareData).map(e => ({
-    label: e.exam_title?.length > 20 ? e.exam_title.slice(0, 18) + '\u2026' : e.exam_title,
+    label: e.exam_title?.length > 20 ? e.exam_title.slice(0, 18) + '…' : e.exam_title,
     value: e.avg_score != null ? Math.round(e.avg_score * 10) / 10 : 0,
   }));
 
@@ -70,17 +70,17 @@ export default function ComparePage() {
     <div>
       <PageHead
         breadcrumb={['Comparativa']}
-        title="Comparativa de ex\u00e1menes"
-        subtitle={`${selected.size} ex\u00e1menes seleccionados`}
+        title="Comparativa de exámenes"
+        subtitle={`${selected.size} exámenes seleccionados`}
       />
 
       <div className="p-6 space-y-6">
-        <Card title="Seleccionar ex\u00e1menes" subtitle="Selecciona hasta 4 ex\u00e1menes para comparar">
+        <Card title="Seleccionar exámenes" subtitle="Selecciona hasta 4 exámenes para comparar">
           <div className="flex items-center gap-3 mb-4">
             <Input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Buscar ex\u00e1menes..."
+              placeholder="Buscar exámenes..."
               className="flex-1"
             />
           </div>
@@ -120,8 +120,8 @@ export default function ComparePage() {
           <Card padding="lg">
             <div className="text-center py-12">
               <Icon name="trend" size={48} className="text-fg-3 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-fg-0 mb-2">Selecciona ex\u00e1menes</h3>
-              <p className="text-sm text-fg-2">Elige al menos 2 ex\u00e1menes para comparar</p>
+              <h3 className="text-lg font-medium text-fg-0 mb-2">Selecciona exámenes</h3>
+              <p className="text-sm text-fg-2">Elige al menos 2 exámenes para comparar</p>
             </div>
           </Card>
         ) : compareLoading ? (
@@ -135,7 +135,7 @@ export default function ComparePage() {
             <div className="text-center py-12">
               <Icon name="trend" size={48} className="text-fg-3 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-fg-0 mb-2">Sin datos</h3>
-              <p className="text-sm text-fg-2">Los ex\u00e1menes seleccionados no tienen intentos completados</p>
+              <p className="text-sm text-fg-2">Los exámenes seleccionados no tienen intentos completados</p>
             </div>
           </Card>
         ) : (
@@ -148,12 +148,12 @@ export default function ComparePage() {
                     <div className="flex justify-between">
                       <span className="text-xs text-fg-2">Promedio</span>
                       <span className={`text-sm font-bold ${exam.avg_score != null && exam.avg_score >= 11 ? 'text-ok' : 'text-danger'}`}>
-                        {exam.avg_score != null ? `${exam.avg_score.toFixed(1)}/20` : '\u2014'}
+                        {exam.avg_score != null ? `${exam.avg_score.toFixed(1)}/20` : '—'}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-xs text-fg-2">Aprobaci\u00f3n</span>
-                      <span className="text-sm font-bold text-fg-0">{exam.pass_rate != null ? `${Math.round(exam.pass_rate)}%` : '\u2014'}</span>
+                      <span className="text-xs text-fg-2">Aprobación</span>
+                      <span className="text-sm font-bold text-fg-0">{exam.pass_rate != null ? `${Math.round(exam.pass_rate)}%` : '—'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-xs text-fg-2">Intentos</span>
@@ -164,11 +164,11 @@ export default function ComparePage() {
               ))}
             </div>
 
-            <Card title="Promedio por examen" subtitle="Comparaci\u00f3n de puntajes promedio (vigesimal 0\u201320)">
+            <Card title="Promedio por examen" subtitle="Comparación de puntajes promedio (vigesimal 0–20)">
               <BarChart data={barData} threshold={11} maxValue={20} />
             </Card>
 
-            <Card title="Distribuci\u00f3n de notas" subtitle="C\u00f3mo se distribuyen los puntajes">
+            <Card title="Distribución de notas" subtitle="Cómo se distribuyen los puntajes">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {compareData.map(exam => (
                   <div key={exam.exam_id}>
@@ -196,10 +196,10 @@ export default function ComparePage() {
             </Card>
 
             <Card title="Tabla comparativa" padding="none">
-              <table className="w-full">
+              <div className="overflow-x-auto"><table className="w-full min-w-[640px]">
                 <thead>
                   <tr className="border-b border-line">
-                    <th className="text-left text-xs text-fg-3 font-semibold uppercase tracking-wider px-5 py-3.5">M\u00e9trica</th>
+                    <th className="text-left text-xs text-fg-3 font-semibold uppercase tracking-wider px-5 py-3.5">Métrica</th>
                     {compareData.map(e => (
                       <th key={e.exam_id} className="text-center text-xs text-fg-3 font-semibold uppercase tracking-wider px-5 py-3.5">
                         {e.exam_title}
@@ -218,15 +218,15 @@ export default function ComparePage() {
                     <td className="px-4 py-3 text-sm text-fg-1">Promedio</td>
                     {compareData.map(e => (
                       <td key={e.exam_id} className={`px-4 py-3 text-center text-sm font-bold ${e.avg_score != null && e.avg_score >= 11 ? 'text-ok' : 'text-danger'}`}>
-                        {e.avg_score != null ? `${e.avg_score.toFixed(1)}/20` : '\u2014'}
+                        {e.avg_score != null ? `${e.avg_score.toFixed(1)}/20` : '—'}
                       </td>
                     ))}
                   </tr>
                   <tr className="border-b border-line/40">
-                    <td className="px-4 py-3 text-sm text-fg-1">Tasa de aprobaci\u00f3n</td>
+                    <td className="px-4 py-3 text-sm text-fg-1">Tasa de aprobación</td>
                     {compareData.map(e => (
                       <td key={e.exam_id} className="px-4 py-3 text-center text-sm font-medium text-fg-0">
-                        {e.pass_rate != null ? `${Math.round(e.pass_rate)}%` : '\u2014'}
+                        {e.pass_rate != null ? `${Math.round(e.pass_rate)}%` : '—'}
                       </td>
                     ))}
                   </tr>
@@ -234,18 +234,18 @@ export default function ComparePage() {
                     <td className="px-4 py-3 text-sm text-fg-1">Mejor rango</td>
                     {compareData.map(e => {
                       const dist = e.distribution || [];
-                      if (!dist.length) return <td key={e.exam_id} className="px-4 py-3 text-center text-sm text-fg-0">\u2014</td>;
+                      if (!dist.length) return <td key={e.exam_id} className="px-4 py-3 text-center text-sm text-fg-0">—</td>;
                       const maxCount = Math.max(...dist.map(b => b.count));
                       const bestIdx = dist.findIndex(b => b.count === maxCount);
                       return (
                         <td key={e.exam_id} className="px-4 py-3 text-center text-sm text-fg-0">
-                          {dist[bestIdx]?.range || DISTRIBUTION_LABELS[bestIdx] || '\u2014'}
+                          {dist[bestIdx]?.range || DISTRIBUTION_LABELS[bestIdx] || '—'}
                         </td>
                       );
                     })}
                   </tr>
                 </tbody>
-              </table>
+              </table></div>
             </Card>
           </>
         )}

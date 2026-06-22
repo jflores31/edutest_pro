@@ -216,7 +216,7 @@ export default function MonitoringPage() {
               <p className="text-sm text-fg-2">No hay exámenes en curso en este momento</p>
             </div>
           ) : (
-            <table className="w-full">
+            <div className="overflow-x-auto"><table className="w-full min-w-[640px]">
               <thead>
                 <tr className="border-b border-line">
                   <th className="text-left text-xs text-fg-3 font-semibold uppercase tracking-wider px-5 py-3.5">Alumno</th>
@@ -279,7 +279,7 @@ export default function MonitoringPage() {
                   );
                 })}
               </tbody>
-            </table>
+            </table></div>
           )}
         </Card>
       </div>

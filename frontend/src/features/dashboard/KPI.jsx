@@ -6,7 +6,7 @@ export function DeltaBadge({ value, invert = false }) {
   const positive = invert ? value < 0 : value > 0;
   return (
     <span className={`text-2xs font-semibold tabular-nums ${positive ? 'text-ok' : 'text-danger'}`}>
-      {value > 0 ? '\u2191' : '\u2193'} {Math.abs(value).toFixed(1)}
+      {value > 0 ? '↑' : '↓'} {Math.abs(value).toFixed(1)}
     </span>
   );
 }
@@ -37,7 +37,7 @@ export function KPICard({ icon, label, value, suffix, foot, delta, invertDelta, 
       </div>
       <div className="flex items-baseline gap-2 mb-1 flex-wrap">
         <span className="text-2xl font-bold text-fg-0 tabular-nums">
-          {value != null ? (decimals > 0 ? animated.toFixed(decimals) : animated) : '\u2014'}
+          {value != null ? (decimals > 0 ? animated.toFixed(decimals) : animated) : '—'}
         </span>
         {suffix && <span className="text-sm text-fg-3">{suffix}</span>}
         <DeltaBadge value={delta} invert={invertDelta} />

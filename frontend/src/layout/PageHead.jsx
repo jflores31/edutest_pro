@@ -15,7 +15,7 @@ export default function PageHead({
   actions,
 }) {
   return (
-    <header className="border-b border-line bg-bg px-8 py-6">
+    <header className="border-b border-line bg-bg px-4 py-5 sm:px-8 sm:py-6">
       {breadcrumb.length > 0 && (
         <nav className="mb-3 flex items-center gap-1.5 text-xs text-fg-3">
           <Link to="/teacher/dashboard" className="hover:text-fg-1 transition-colors">
@@ -32,9 +32,9 @@ export default function PageHead({
         </nav>
       )}
 
-      <div className="flex items-end justify-between gap-6">
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between md:gap-6">
         <div className="min-w-0">
-          <h1 className="truncate text-2xl font-bold tracking-tight text-fg-0">
+          <h1 className="truncate text-xl sm:text-2xl font-bold tracking-tight text-fg-0">
             {title}
           </h1>
           {subtitle && (
@@ -43,7 +43,7 @@ export default function PageHead({
         </div>
 
         {actions && (
-          <div className="flex shrink-0 items-center gap-2">{actions}</div>
+          <div className="flex flex-wrap items-center gap-2 md:shrink-0 md:justify-end">{actions}</div>
         )}
       </div>
     </header>

@@ -249,7 +249,7 @@ export default function StudentProfilePage() {
             subtitle={`${student.attempts.length} intentos registrados`}
             padding="none"
           >
-            <table className="w-full">
+            <div className="overflow-x-auto"><table className="w-full min-w-[640px]">
               <thead>
                 <tr className="border-b border-line">
                   <th className="text-left text-xs text-fg-3 font-semibold uppercase tracking-wider px-5 py-3.5">Examen</th>
@@ -287,7 +287,7 @@ export default function StudentProfilePage() {
                   );
                 })}
               </tbody>
-            </table>
+            </table></div>
           </Card>
         ) : (
           <Card padding="lg">

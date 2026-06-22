@@ -418,7 +418,7 @@ export default function StudentsListPage() {
               {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} height="40px" />)}
             </div>
           ) : (
-            <table className="w-full">
+            <div className="overflow-x-auto"><table className="w-full min-w-[640px]">
               <thead>
                 <tr className="border-b border-line">
                   <th className="text-left text-xs text-fg-3 font-semibold uppercase tracking-wider px-5 py-3.5">Alumno</th>
@@ -471,7 +471,7 @@ export default function StudentsListPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
           {filtered.length === 0 && !loading && (
             <div className="text-center py-12">

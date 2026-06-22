@@ -53,7 +53,7 @@ export function MultipleChoice({ q, value, onChange }) {
 }
 
 export function BooleanChoice({ value, onChange }) {
-  const opts = [{ id: true, label: 'Verdadero', icon: '\u2713' }, { id: false, label: 'Falso', icon: '\u2717' }];
+  const opts = [{ id: true, label: 'Verdadero', icon: '✓' }, { id: false, label: 'Falso', icon: '✗' }];
   return (
     <div className="grid grid-cols-2 gap-4">
       {opts.map(o => (
@@ -73,7 +73,7 @@ export function BooleanChoice({ value, onChange }) {
 export function ShortAnswer({ value, onChange }) {
   return (
     <textarea value={value || ''} onChange={e => onChange(e.target.value)} rows={5}
-      placeholder="Escribe tu respuesta aqu\u00ed\u2026"
+      placeholder="Escribe tu respuesta aquí…"
       className="w-full bg-bg-2 border border-line rounded-xl p-4 text-fg-0 text-sm outline-none
         focus:border-accent focus:ring-2 focus:ring-accent/20 resize-y transition-all" />
   );

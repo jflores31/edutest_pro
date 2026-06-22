@@ -26,7 +26,7 @@ export function LiveBanner({ data, countdown }) {
         {countdown}s
       </span>
       <Button variant="ghost" size="sm" onClick={() => navigate('/teacher/monitoring')}>
-        Ver \u2192
+        Ver →
       </Button>
     </div>
   );

@@ -188,7 +188,7 @@ function CoursesTab() {
         <div className="bg-danger/10 border border-danger/30 text-danger text-sm px-3 py-2 rounded-xl">{deleteMsg}</div>
       )}
       <Card title="Cursos" subtitle={`${courses.length} cursos registrados`} headerAction={<Button size="sm" icon={<Icon name="plus" size={12} />} onClick={openNew}>Nuevo curso</Button>} padding="none">
-        <table className="w-full">
+        <div className="overflow-x-auto"><table className="w-full min-w-[480px]">
           <thead>
             <tr className="border-b border-line">
                   <th className="text-left text-xs text-fg-3 font-semibold uppercase tracking-wider px-5 py-3.5">Nombre</th>
@@ -212,7 +212,7 @@ function CoursesTab() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </Card>
 
       {showModal && (
