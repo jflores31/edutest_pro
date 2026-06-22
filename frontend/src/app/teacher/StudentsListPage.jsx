@@ -10,11 +10,12 @@ import { ConfirmModal } from '../../features/shared/ConfirmModal';
 import { formatRelative } from '../../utils/formatters';
 
 function EditStudentModal({ student, courses, onSave, onClose }) {
+  const isEdit = !!student;
   const [form, setForm] = useState({
-    first_name: student.firstName,
-    last_name:  student.lastName,
-    code:       student.code,
-    course:     student.courseId ?? '',
+    first_name: student?.firstName ?? '',
+    last_name:  student?.lastName ?? '',
+    code:       student?.code ?? '',
+    course:     student?.courseId ?? '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState('');
@@ -22,8 +23,16 @@ function EditStudentModal({ student, courses, onSave, onClose }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   async function handleSave() {
+    if (!form.first_name.trim() || !form.last_name.trim()) {
+      setError('Nombre y apellido son obligatorios.');
+      return;
+    }
     if (!/^\d{8}$/.test(form.code || '')) {
       setError('El DNI debe tener exactamente 8 dígitos (solo números).');
+      return;
+    }
+    if (!form.course) {
+      setError('Selecciona un curso.');
       return;
     }
     setSaving(true);
@@ -45,7 +54,7 @@ function EditStudentModal({ student, courses, onSave, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose} role="dialog" aria-modal="true">
       <div className="bg-bg-1 border border-line rounded-2xl p-6 max-w-md w-full shadow-pop space-y-4" onClick={e => e.stopPropagation()}>
-        <h3 className="text-fg-0 font-semibold text-base">Editar alumno</h3>
+        <h3 className="text-fg-0 font-semibold text-base">{isEdit ? 'Editar alumno' : 'Agregar alumno'}</h3>
         {error && <p className="text-danger text-xs bg-danger/5 border border-danger/20 rounded-xl px-3 py-2">{error}</p>}
         <div className="grid grid-cols-2 gap-3">
           <Input label="Nombre" value={form.first_name} onChange={e => set('first_name', e.target.value)} />
@@ -63,7 +72,7 @@ function EditStudentModal({ student, courses, onSave, onClose }) {
         <div className="flex gap-2 justify-end pt-2 border-t border-line">
           <Button variant="ghost" onClick={onClose}>Cancelar</Button>
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? 'Guardando…' : 'Guardar cambios'}
+            {saving ? 'Guardando…' : (isEdit ? 'Guardar cambios' : 'Agregar')}
           </Button>
         </div>
       </div>
@@ -202,6 +211,7 @@ export default function StudentsListPage() {
   const [courseFilter, setCourseFilter] = useState('all');
   const [editStudent, setEditStudent] = useState(null);
   const [showImport, setShowImport] = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
@@ -245,6 +255,12 @@ export default function StudentsListPage() {
         : s
     ));
     setEditStudent(null);
+  }
+
+  async function createStudent(data) {
+    await studentsApi.create(data);
+    setShowAdd(false);
+    await load();
   }
 
   async function handleExport() {
@@ -309,8 +325,11 @@ export default function StudentsListPage() {
             <Button variant="secondary" size="sm" icon={<Icon name="download" size={13} />} onClick={handleExport} disabled={exporting || students.length === 0}>
               {exporting ? 'Exportando…' : 'Exportar'}
             </Button>
-            <Button icon={<Icon name="upload" size={14} />} onClick={() => setShowImport(true)}>
+            <Button variant="secondary" size="sm" icon={<Icon name="upload" size={13} />} onClick={() => setShowImport(true)}>
               Importar alumnos
+            </Button>
+            <Button icon={<Icon name="plus" size={14} />} onClick={() => setShowAdd(true)}>
+              Agregar alumno
             </Button>
           </div>
         }
@@ -462,13 +481,14 @@ export default function StudentsListPage() {
                 {students.length === 0 ? 'No hay alumnos registrados aún' : 'Intenta con otros filtros'}
               </p>
               {students.length === 0 && (
-                <Button
-                  className="mt-4"
-                  icon={<Icon name="upload" size={14} />}
-                  onClick={() => setShowImport(true)}
-                >
-                  Importar alumnos
-                </Button>
+                <div className="mt-4 flex items-center justify-center gap-2">
+                  <Button icon={<Icon name="plus" size={14} />} onClick={() => setShowAdd(true)}>
+                    Agregar alumno
+                  </Button>
+                  <Button variant="secondary" icon={<Icon name="upload" size={14} />} onClick={() => setShowImport(true)}>
+                    Importar alumnos
+                  </Button>
+                </div>
               )}
             </div>
           )}
@@ -481,6 +501,15 @@ export default function StudentsListPage() {
           courses={courseOptions}
           onSave={saveEdit}
           onClose={() => setEditStudent(null)}
+        />
+      )}
+
+      {showAdd && (
+        <EditStudentModal
+          student={null}
+          courses={courseOptions}
+          onSave={createStudent}
+          onClose={() => setShowAdd(false)}
         />
       )}
 
