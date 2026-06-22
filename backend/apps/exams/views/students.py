@@ -1,7 +1,7 @@
 import logging
 from django.db import transaction
 from django.db.models import Count, Q
-from rest_framework import permissions, status, viewsets
+from rest_framework import parsers, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -122,6 +122,107 @@ class StudentViewSet(viewsets.ModelViewSet):
 
         return Response(
             {"created": created_count, "skipped": skipped, "total": len(items_data)},
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=False, methods=["get"], url_path="export")
+    def export(self, request):
+        """GET /api/v1/students/export/?course_id=<id>
+
+        Exporta los alumnos en CSV con el formato: DNI,Nombres,Apellidos.
+        El campo `code` se exporta como DNI. Respeta el filtro de curso.
+        """
+        import csv
+        from io import StringIO
+        from django.http import HttpResponse as DjangoHttpResponse
+
+        qs = (
+            Student.objects.filter(organization=request.user.organization)
+            .select_related("course")
+        )
+        course_id = request.query_params.get("course_id")
+        if course_id:
+            qs = qs.filter(course_id=course_id)
+        qs = qs.order_by("course__name", "last_name", "first_name")
+
+        def safe(val):
+            s = str(val or "")
+            # Evita inyección de fórmulas si el CSV se abre en Excel/Sheets
+            return ("'" + s) if s[:1] in ("=", "+", "-", "@", "\t", "\r") else s
+
+        buffer = StringIO()
+        buffer.write("\ufeff")  # BOM → Excel detecta UTF-8
+        writer = csv.writer(buffer)
+        writer.writerow(["DNI", "Nombres", "Apellidos"])
+        for s in qs:
+            writer.writerow([safe(s.code), safe(s.first_name), safe(s.last_name)])
+
+        response = DjangoHttpResponse(
+            buffer.getvalue(), content_type="text/csv; charset=utf-8"
+        )
+        response["Content-Disposition"] = 'attachment; filename="alumnos.csv"'
+        return response
+
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="import",
+        parser_classes=[parsers.MultiPartParser, parsers.FormParser],
+    )
+    def import_students(self, request):
+        """POST /api/v1/students/import/  (multipart)
+
+        Campos: file (CSV/XLSX) + course_id.
+        Columnas del archivo: DNI, Nombres, Apellidos. El DNI se guarda como `code`
+        y la unicidad es por organización (DNI repetido → omitido).
+        """
+        from services.student_import_service import parse_student_file, StudentFileError
+
+        course_id = request.data.get("course_id")
+        if not course_id:
+            return Response({"error": "Selecciona un curso destino."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            course = Course.objects.get(id=course_id, organization=request.user.organization)
+        except (Course.DoesNotExist, ValueError):
+            return Response({"error": "Curso no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+        file = request.FILES.get("file")
+        if not file:
+            return Response({"error": "No se envió archivo."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            rows = parse_student_file(file)
+        except StudentFileError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not rows:
+            return Response({"error": "El archivo no contiene alumnos."}, status=status.HTTP_400_BAD_REQUEST)
+
+        created = 0
+        skipped = []
+        errors = []
+        with transaction.atomic():
+            for i, r in enumerate(rows, start=1):
+                dni, first_name, last_name = r["dni"], r["first_name"], r["last_name"]
+                if not (dni and first_name and last_name):
+                    errors.append({"row": i, "message": "DNI, Nombres y Apellidos son obligatorios."})
+                    continue
+                _, was_created = Student.objects.get_or_create(
+                    organization=request.user.organization,
+                    code=dni,
+                    defaults={
+                        "course": course,
+                        "first_name": first_name,
+                        "last_name": last_name,
+                    },
+                )
+                if was_created:
+                    created += 1
+                else:
+                    skipped.append(dni)
+
+        return Response(
+            {"created": created, "skipped": skipped, "errors": errors, "total": len(rows)},
             status=status.HTTP_201_CREATED,
         )
 

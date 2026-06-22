@@ -320,6 +320,33 @@ export const students = {
   profile: (id) => get(`/students/${id}/profile/`),
   reportCard: (id, format = 'json') => get(`/students/${id}/report-card/?output=${format}`),
   bulkImport: (courseId, students) => post('/students/bulk/', { course_id: courseId, students }),
+  importFile: (courseId, file) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('course_id', courseId);
+    return upload('/students/import/', fd);
+  },
+  exportCsv: async (courseId) => {
+    const headers = {};
+    if (studentAccessToken) {
+      headers.Authorization = `Student ${studentAccessToken}`;
+    }
+    const qs = courseId ? `?course_id=${encodeURIComponent(courseId)}` : '';
+    const res = await fetch(`${API_BASE}/students/export/${qs}`, {
+      headers,
+      credentials: 'include',
+    });
+    if (!res.ok) throw new Error(`Error ${res.status}`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'alumnos.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  },
   reportCardPdf: async (id, code) => {
     const headers = {};
     if (studentAccessToken) {

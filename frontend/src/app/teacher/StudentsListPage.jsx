@@ -67,6 +67,101 @@ function EditStudentModal({ student, courses, onSave, onClose }) {
 }
 
 
+function ImportStudentsModal({ courses, defaultCourse, onClose, onDone }) {
+  const [courseId, setCourseId] = useState(defaultCourse || '');
+  const [file, setFile] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [result, setResult] = useState(null);
+
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  async function handleImport() {
+    if (!courseId) { setError('Selecciona un curso destino.'); return; }
+    if (!file) { setError('Selecciona un archivo .csv o .xlsx.'); return; }
+    setBusy(true);
+    setError('');
+    try {
+      const res = await studentsApi.importFile(courseId, file);
+      setResult(res);
+      onDone?.();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose} role="dialog" aria-modal="true">
+      <div className="bg-bg-1 border border-line rounded-2xl p-6 max-w-md w-full shadow-pop space-y-4" onClick={e => e.stopPropagation()}>
+        <div>
+          <h3 className="text-fg-0 font-semibold text-base">Importar alumnos</h3>
+          <p className="text-xs text-fg-2 mt-1">
+            Archivo <span className="font-mono text-fg-1">.csv</span> o{' '}
+            <span className="font-mono text-fg-1">.xlsx</span> con columnas:{' '}
+            <span className="font-mono text-fg-1">DNI, Nombres, Apellidos</span>
+          </p>
+        </div>
+
+        {error && <p className="text-danger text-xs bg-danger/5 border border-danger/20 rounded-xl px-3 py-2">{error}</p>}
+
+        {result ? (
+          <div className="space-y-2 text-sm">
+            <div className="flex items-center gap-2 text-ok font-medium">
+              <Icon name="check" size={16} /> {result.created} alumno(s) importado(s)
+            </div>
+            {result.skipped?.length > 0 && (
+              <p className="text-warn text-xs">
+                {result.skipped.length} omitido(s) por DNI ya existente:{' '}
+                {result.skipped.slice(0, 10).join(', ')}{result.skipped.length > 10 ? '…' : ''}
+              </p>
+            )}
+            {result.errors?.length > 0 && (
+              <p className="text-danger text-xs">{result.errors.length} fila(s) con error (DNI/Nombres/Apellidos vacíos).</p>
+            )}
+            <div className="flex justify-end pt-2 border-t border-line">
+              <Button onClick={onClose}>Cerrar</Button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div>
+              <label className="block text-xs font-medium text-fg-1 mb-1">Curso destino</label>
+              <select value={courseId} onChange={e => setCourseId(e.target.value)}
+                className="w-full bg-transparent border-2 border-line rounded-xl px-3 py-2 text-sm text-fg-0 outline-none focus:border-accent transition-colors">
+                <option value="">Selecciona un curso…</option>
+                {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-fg-1 mb-1">Archivo</label>
+              <input
+                type="file"
+                accept=".csv,.xlsx,.txt"
+                onChange={e => setFile(e.target.files[0] || null)}
+                className="block w-full text-sm text-fg-2 file:mr-3 file:rounded-lg file:border-0 file:bg-accent file:px-3 file:py-1.5 file:text-bg-1 file:text-sm file:font-medium file:cursor-pointer"
+              />
+              {file && <p className="text-2xs text-fg-3 mt-1">{file.name}</p>}
+            </div>
+            <div className="flex gap-2 justify-end pt-2 border-t border-line">
+              <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+              <Button onClick={handleImport} disabled={busy || !file || !courseId}>
+                {busy ? 'Importando…' : 'Importar'}
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
 function normalize(s) {
   return {
     id: s.id,
@@ -100,6 +195,8 @@ export default function StudentsListPage() {
   const [search, setSearch] = useState('');
   const [courseFilter, setCourseFilter] = useState('all');
   const [editStudent, setEditStudent] = useState(null);
+  const [showImport, setShowImport] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -142,6 +239,18 @@ export default function StudentsListPage() {
     setEditStudent(null);
   }
 
+  async function handleExport() {
+    setExporting(true);
+    setError('');
+    try {
+      await studentsApi.exportCsv(courseFilter !== 'all' ? courseFilter : null);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setExporting(false);
+    }
+  }
+
   const filtered = useMemo(() => {
     return students.filter(s => {
       if (courseFilter !== 'all' && s.courseId !== Number(courseFilter) && s.course !== courseFilter) return false;
@@ -174,7 +283,10 @@ export default function StudentsListPage() {
             <Button variant="ghost" size="sm" icon={<Icon name="refresh" size={13} />} onClick={load}>
               Actualizar
             </Button>
-            <Button icon={<Icon name="upload" size={14} />} onClick={() => navigate('/teacher/import')}>
+            <Button variant="secondary" size="sm" icon={<Icon name="download" size={13} />} onClick={handleExport} disabled={exporting || students.length === 0}>
+              {exporting ? 'Exportando…' : 'Exportar'}
+            </Button>
+            <Button icon={<Icon name="upload" size={14} />} onClick={() => setShowImport(true)}>
               Importar alumnos
             </Button>
           </div>
@@ -327,7 +439,7 @@ export default function StudentsListPage() {
                 <Button
                   className="mt-4"
                   icon={<Icon name="upload" size={14} />}
-                  onClick={() => navigate('/teacher/import')}
+                  onClick={() => setShowImport(true)}
                 >
                   Importar alumnos
                 </Button>
@@ -343,6 +455,15 @@ export default function StudentsListPage() {
           courses={courseOptions}
           onSave={saveEdit}
           onClose={() => setEditStudent(null)}
+        />
+      )}
+
+      {showImport && (
+        <ImportStudentsModal
+          courses={courseOptions}
+          defaultCourse={courseFilter !== 'all' ? courseFilter : ''}
+          onClose={() => setShowImport(false)}
+          onDone={load}
         />
       )}
     </div>
