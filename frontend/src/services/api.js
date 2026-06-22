@@ -181,8 +181,12 @@ async function getAll(path) {
     if (Array.isArray(data)) return data;
     results.push(...(data.results ?? []));
     if (!data.next) break;
-    // Strip origin + API base to get a relative path for the next request
-    nextPath = data.next.replace(window.location.origin + API_BASE, '');
+    // DRF builds absolute `next` URLs with the backend host (Render), which
+    // differs from the Vercel origin. Take just the path+query so the next
+    // request goes back through the same-origin proxy (any host works).
+    const u = new URL(data.next, window.location.origin);
+    nextPath = u.pathname + u.search;
+    if (nextPath.startsWith(API_BASE)) nextPath = nextPath.slice(API_BASE.length);
   }
   return results;
 }
