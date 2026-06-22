@@ -25,6 +25,7 @@ import csv
 import io
 import logging
 import os
+import unicodedata
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -51,26 +52,54 @@ REQUIRED_COLUMNS: frozenset[str] = frozenset({"text", "correct_answer"})
 OPTIONAL_COLUMNS: frozenset[str] = frozenset({"option_a", "option_b", "option_c", "option_d", "option_e", "category", "explanation", "type"})
 ALL_KNOWN_COLUMNS: frozenset[str] = REQUIRED_COLUMNS | OPTIONAL_COLUMNS
 
-# Mapa de nombres en español → nombres internos (minúscula normalizada)
+def _strip_accents(text: str) -> str:
+    """Quita tildes/diacríticos para comparaciones robustas (á→a, ñ→n)."""
+    return "".join(
+        c for c in unicodedata.normalize("NFKD", str(text or ""))
+        if not unicodedata.combining(c)
+    )
+
+
+# Mapa de nombres en español → nombres internos (minúscula normalizada).
+# El matching es insensible a acentos (ver _normalize_header), así que basta
+# con listar la forma sin tilde; se dejan algunas con tilde por claridad.
 COLUMN_ALIASES: dict[str, str] = {
-    "pregunta": "text",
-    "opción a": "option_a",
-    "opcion a": "option_a",
-    "opción b": "option_b",
-    "opcion b": "option_b",
-    "opción c": "option_c",
-    "opcion c": "option_c",
-    "opción d": "option_d",
-    "opcion d": "option_d",
-    "opción e": "option_e",
-    "opcion e": "option_e",
-    "respuesta correcta": "correct_answer",
-    "explicación": "explanation",
-    "explicacion": "explanation",
-    "tema": "category",
-    "topic": "category",
-    "tipo": "type",
+    # Enunciado
+    "pregunta": "text", "enunciado": "text", "texto": "text",
+    "pregunta/enunciado": "text",
+    # Opciones / alternativas A–E
+    "opcion a": "option_a", "opción a": "option_a", "alternativa a": "option_a", "a": "option_a",
+    "opcion b": "option_b", "opción b": "option_b", "alternativa b": "option_b", "b": "option_b",
+    "opcion c": "option_c", "opción c": "option_c", "alternativa c": "option_c", "c": "option_c",
+    "opcion d": "option_d", "opción d": "option_d", "alternativa d": "option_d", "d": "option_d",
+    "opcion e": "option_e", "opción e": "option_e", "alternativa e": "option_e", "e": "option_e",
+    # Respuesta correcta
+    "respuesta correcta": "correct_answer", "respuesta": "correct_answer",
+    "respuestas correctas": "correct_answer", "correcta": "correct_answer",
+    "correctas": "correct_answer", "clave": "correct_answer", "answer": "correct_answer",
+    # Explicación
+    "explicacion": "explanation", "explicación": "explanation",
+    "justificacion": "explanation", "retroalimentacion": "explanation",
+    "explanation": "explanation",
+    # Tema / categoría
+    "tema": "category", "topic": "category", "categoria": "category",
+    "categoría": "category", "materia": "category", "asignatura": "category",
+    "unidad": "category",
+    # Tipo (opcional)
+    "tipo": "type", "tipo de pregunta": "type", "type": "type",
 }
+# Versión sin acentos para matching insensible a tildes.
+_COLUMN_ALIASES_NOACCENT: dict[str, str] = {
+    _strip_accents(k): v for k, v in COLUMN_ALIASES.items()
+}
+
+
+def _normalize_header(raw: str) -> str:
+    """Normaliza una cabecera (sin tildes, minúscula, espacios colapsados) y la
+    traduce a la clave interna vía COLUMN_ALIASES. Si no hay alias, devuelve la
+    forma normalizada tal cual."""
+    norm = " ".join(_strip_accents(str(raw or "")).strip().lower().split())
+    return _COLUMN_ALIASES_NOACCENT.get(norm, norm)
 
 VALID_QUESTION_TYPES: frozenset[str] = frozenset(
     v for v in Question.QuestionType.values
@@ -85,29 +114,45 @@ _QUESTION_TYPE_SYNONYMS: dict[str, str] = {
     "boolean": "BOOLEAN", "booleano": "BOOLEAN", "bool": "BOOLEAN",
     "true/false": "BOOLEAN", "true false": "BOOLEAN", "tf": "BOOLEAN",
     "verdadero/falso": "BOOLEAN", "verdadero falso": "BOOLEAN",
-    "verdadero o falso": "BOOLEAN", "v/f": "BOOLEAN", "vf": "BOOLEAN",
+    "verdadero o falso": "BOOLEAN", "verdadero-falso": "BOOLEAN",
+    "falso/verdadero": "BOOLEAN", "falso verdadero": "BOOLEAN",
+    "cierto/falso": "BOOLEAN", "cierto falso": "BOOLEAN", "cierto o falso": "BOOLEAN",
+    "v/f": "BOOLEAN", "vf": "BOOLEAN", "v f": "BOOLEAN", "f/v": "BOOLEAN",
+    "v o f": "BOOLEAN", "si/no": "BOOLEAN", "si no": "BOOLEAN",
     # Opción múltiple (varias respuestas correctas)
     "multiple_choice": "MULTIPLE_CHOICE", "multiple choice": "MULTIPLE_CHOICE",
-    "multiple": "MULTIPLE_CHOICE", "mc": "MULTIPLE_CHOICE",
-    "opcion multiple": "MULTIPLE_CHOICE", "opción múltiple": "MULTIPLE_CHOICE",
-    "seleccion multiple": "MULTIPLE_CHOICE", "selección múltiple": "MULTIPLE_CHOICE",
-    "varias": "MULTIPLE_CHOICE",
-    # Opción única / normal (una sola respuesta correcta) → mismo tipo del modelo
-    "opcion unica": "MULTIPLE_CHOICE", "opción única": "MULTIPLE_CHOICE",
-    "unica": "MULTIPLE_CHOICE", "única": "MULTIPLE_CHOICE",
+    "multiple": "MULTIPLE_CHOICE", "multi": "MULTIPLE_CHOICE", "mc": "MULTIPLE_CHOICE",
+    "opcion multiple": "MULTIPLE_CHOICE", "opciones multiples": "MULTIPLE_CHOICE",
+    "seleccion multiple": "MULTIPLE_CHOICE", "eleccion multiple": "MULTIPLE_CHOICE",
+    "varias": "MULTIPLE_CHOICE", "varias respuestas": "MULTIPLE_CHOICE",
+    "multiples respuestas": "MULTIPLE_CHOICE", "respuestas multiples": "MULTIPLE_CHOICE",
+    "checkbox": "MULTIPLE_CHOICE", "casillas": "MULTIPLE_CHOICE",
+    # Opción única / simple / normal (una sola respuesta) → mismo tipo del modelo
+    "opcion unica": "MULTIPLE_CHOICE", "unica": "MULTIPLE_CHOICE",
+    "seleccion unica": "MULTIPLE_CHOICE", "eleccion unica": "MULTIPLE_CHOICE",
+    "respuesta unica": "MULTIPLE_CHOICE", "una respuesta": "MULTIPLE_CHOICE",
+    "una sola respuesta": "MULTIPLE_CHOICE",
+    "simple": "MULTIPLE_CHOICE", "opcion simple": "MULTIPLE_CHOICE",
+    "seleccion simple": "MULTIPLE_CHOICE", "eleccion simple": "MULTIPLE_CHOICE",
+    "respuesta simple": "MULTIPLE_CHOICE", "sencilla": "MULTIPLE_CHOICE",
+    "opcion sencilla": "MULTIPLE_CHOICE", "radio": "MULTIPLE_CHOICE",
     "normal": "MULTIPLE_CHOICE", "opcion normal": "MULTIPLE_CHOICE",
-    "opción normal": "MULTIPLE_CHOICE", "single": "MULTIPLE_CHOICE",
-    "single choice": "MULTIPLE_CHOICE", "respuesta unica": "MULTIPLE_CHOICE",
-    "respuesta única": "MULTIPLE_CHOICE",
+    "single": "MULTIPLE_CHOICE", "single choice": "MULTIPLE_CHOICE",
     # Respuesta corta / abierta
     "short_answer": "SHORT_ANSWER", "short answer": "SHORT_ANSWER",
     "short": "SHORT_ANSWER", "respuesta corta": "SHORT_ANSWER",
-    "abierta": "SHORT_ANSWER", "texto": "SHORT_ANSWER", "open": "SHORT_ANSWER",
+    "respuesta abierta": "SHORT_ANSWER", "abierta": "SHORT_ANSWER",
+    "texto libre": "SHORT_ANSWER", "open": "SHORT_ANSWER",
+}
+# Versión sin acentos para matching insensible a tildes.
+_SYNONYMS_NOACCENT: dict[str, str] = {
+    _strip_accents(k): v for k, v in _QUESTION_TYPE_SYNONYMS.items()
 }
 
 
 def normalize_question_type(raw: str) -> str:
-    """Normaliza el tipo de pregunta aceptando español/lenguaje natural.
+    """Normaliza el tipo de pregunta aceptando español/lenguaje natural,
+    insensible a acentos.
 
     Vacío → MULTIPLE_CHOICE. Si no se reconoce, devuelve el texto en mayúsculas
     para que la validación reporte 'Tipo inválido' con el valor original.
@@ -115,32 +160,47 @@ def normalize_question_type(raw: str) -> str:
     key = " ".join(str(raw or "").strip().lower().split())
     if not key:
         return "MULTIPLE_CHOICE"
-    if key in _QUESTION_TYPE_SYNONYMS:
-        return _QUESTION_TYPE_SYNONYMS[key]
+    match = _SYNONYMS_NOACCENT.get(_strip_accents(key))
+    if match:
+        return match
     return key.upper().replace(" ", "_").replace("/", "_")
 
 
-# Respuestas que indican una pregunta Verdadero/Falso cuando no hay opciones.
+# Respuestas que indican Verdadero/Falso (comparadas sin acentos).
 _BOOLEAN_ANSWERS: frozenset[str] = frozenset(
-    {"true", "false", "verdadero", "falso", "1", "0", "si", "sí", "no"}
+    {"true", "false", "verdadero", "falso", "1", "0", "si", "no", "cierto", "v", "f"}
 )
+# Valores que cuentan como "verdadero" al construir la metadata booleana.
+_BOOLEAN_TRUE: frozenset[str] = frozenset({"true", "verdadero", "1", "si", "cierto", "v"})
+# Si las opciones son literalmente estas palabras, la pregunta es V/F.
+_BOOLEAN_OPTION_WORDS: frozenset[str] = frozenset(
+    {"verdadero", "falso", "true", "false", "v", "f", "si", "no", "cierto"}
+)
+
+
+def _is_boolean_answer(value: str) -> bool:
+    return _strip_accents((value or "").strip().lower()) in _BOOLEAN_ANSWERS
 
 
 def infer_question_type(row: dict) -> str:
     """Deduce el tipo cuando el archivo NO trae columna 'Tipo'.
 
-    - Opciones A–D presentes       → MULTIPLE_CHOICE (única o múltiple según el
-      número de respuestas correctas: 'B' = única; 'A,C' = múltiple).
-    - Sin opciones y respuesta V/F → BOOLEAN.
-    - Sin opciones y texto libre   → SHORT_ANSWER.
+    - Opciones que son solo Verdadero/Falso  → BOOLEAN (V/F escrita como opciones).
+    - Otras opciones A–E presentes           → MULTIPLE_CHOICE (única o múltiple
+      según el nº de respuestas correctas: 'B' = única; 'A,C' = múltiple).
+    - Sin opciones y respuesta V/F           → BOOLEAN.
+    - Sin opciones y texto libre             → SHORT_ANSWER.
     """
-    has_options = any(
-        (row.get(f"option_{k}", "") or "").strip() for k in ("a", "b", "c", "d")
-    )
-    if has_options:
+    nonempty = [
+        (row.get(f"option_{k}", "") or "").strip()
+        for k in ("a", "b", "c", "d", "e")
+    ]
+    nonempty = [o for o in nonempty if o]
+    if nonempty:
+        if {_strip_accents(o.lower()) for o in nonempty} <= _BOOLEAN_OPTION_WORDS:
+            return "BOOLEAN"
         return "MULTIPLE_CHOICE"
-    correct = (row.get("correct_answer", "") or "").strip().lower()
-    if correct in _BOOLEAN_ANSWERS:
+    if _is_boolean_answer(row.get("correct_answer", "")):
         return "BOOLEAN"
     return "SHORT_ANSWER"
 
@@ -390,9 +450,8 @@ class ImportService:
                         errors.append({"row_id": row_id, "field": "correct_answer", "message": f"La respuesta '{','.join(sorted(invalid))}' no tiene opción definida."})
 
             elif question_type == "BOOLEAN":
-                correct = row.get("correct_answer", "").strip().lower()
-                if correct not in ("true", "false", "verdadero", "falso", "1", "0"):
-                    errors.append({"row_id": row_id, "field": "correct_answer", "message": "Para BOOLEAN, correct_answer debe ser 'true' o 'false'."})
+                if not _is_boolean_answer(row.get("correct_answer", "")):
+                    errors.append({"row_id": row_id, "field": "correct_answer", "message": "Para Verdadero/Falso, la respuesta debe ser 'Verdadero'/'Falso' (o true/false, sí/no, 1/0)."})
 
             elif question_type == "SHORT_ANSWER":
                 if not row.get("correct_answer", "").strip():
@@ -634,10 +693,9 @@ class ImportService:
             if reader.fieldnames is None:
                 raise ImportFileFormatError("El CSV no tiene encabezados válidos.")
 
-            # Normalizar y traducir nombres de columnas (soporta español)
+            # Normalizar y traducir nombres de columnas (español, insensible a tildes)
             normalized_headers = [
-                COLUMN_ALIASES.get(h.strip().lower(), h.strip().lower())
-                for h in reader.fieldnames if h is not None
+                _normalize_header(h) for h in reader.fieldnames if h is not None
             ]
             missing = REQUIRED_COLUMNS - set(normalized_headers)
             if missing:
@@ -647,7 +705,7 @@ class ImportService:
 
             for row in reader:
                 yield {
-                    COLUMN_ALIASES.get((k or "").strip().lower(), (k or "").strip().lower()): (v or "").strip()
+                    _normalize_header(k): (v or "").strip()
                     for k, v in row.items() if k is not None
                 }
 
@@ -668,8 +726,7 @@ class ImportService:
                 raise ImportFileFormatError("El archivo XLSX está vacío.")
 
             headers = [
-                COLUMN_ALIASES.get(str(h).strip().lower(), str(h).strip().lower())
-                if h is not None else ""
+                _normalize_header(h) if h is not None else ""
                 for h in header_row
             ]
             missing = REQUIRED_COLUMNS - set(headers)
@@ -797,15 +854,15 @@ class ImportService:
 
     def _validate_boolean_row(self, row_num: int, row: dict[str, str]) -> list[RowError]:
         errors: list[RowError] = []
-        correct = row.get("correct_answer", "").strip().lower()
-        if correct not in ("true", "false", "verdadero", "falso", "1", "0"):
+        correct = row.get("correct_answer", "").strip()
+        if not _is_boolean_answer(correct):
             errors.append(
                 RowError(
                     row=row_num,
                     column="correct_answer",
                     message=(
-                        f"Para BOOLEAN, correct_answer debe ser 'true' o 'false'. "
-                        f"Recibido: '{row.get('correct_answer', '')}'"
+                        f"Para Verdadero/Falso, la respuesta debe ser 'Verdadero'/'Falso' "
+                        f"(o true/false, sí/no, 1/0). Recibido: '{row.get('correct_answer', '')}'"
                     ),
                 )
             )
@@ -954,8 +1011,8 @@ class ImportService:
             }
 
         if question_type == "BOOLEAN":
-            raw = row.get("correct_answer", "").strip().lower()
-            correct_bool = raw in ("true", "verdadero", "1")
+            raw = _strip_accents(row.get("correct_answer", "").strip().lower())
+            correct_bool = raw in _BOOLEAN_TRUE
             return {"correct_answer": correct_bool, "category": category, "explanation": explanation}
 
         if question_type == "SHORT_ANSWER":
