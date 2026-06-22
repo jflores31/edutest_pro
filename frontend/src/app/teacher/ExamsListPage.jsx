@@ -96,7 +96,9 @@ export default function ExamsListPage() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      await examsApi.delete(deleteTarget.id, (deleteTarget.attempts || 0) > 0);
+      // El backend bloquea el borrado si el examen tiene intentos (cualquier
+      // estado) o snapshots; como el usuario ya confirmó en el modal, forzamos.
+      await examsApi.delete(deleteTarget.id, true);
       setExams(prev => prev.filter(e => e.id !== deleteTarget.id));
       toast.success(`"${deleteTarget.title}" eliminado`);
       setDeleteTarget(null);
@@ -184,9 +186,7 @@ export default function ExamsListPage() {
         open={!!deleteTarget}
         title="Eliminar examen"
         message={deleteTarget
-          ? ((deleteTarget.attempts || 0) > 0
-              ? `"${deleteTarget.title}" tiene ${deleteTarget.attempts} intento(s). Se eliminarán también sus resultados. Esta acción no se puede deshacer.`
-              : `¿Eliminar "${deleteTarget.title}"? Esta acción no se puede deshacer.`)
+          ? `¿Eliminar "${deleteTarget.title}"? Se eliminarán también sus intentos y resultados asociados (si los hubiera). Esta acción no se puede deshacer.`
           : ''}
         confirmLabel={deleting ? 'Eliminando…' : 'Eliminar'}
         onConfirm={confirmDelete}
