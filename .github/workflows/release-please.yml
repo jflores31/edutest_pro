@@ -1,0 +1,24 @@
+name: release-please
+
+# Automated releases driven by Conventional Commits.
+# On every push to main, release-please maintains a "release PR" that bumps the
+# version (feat → minor, fix → patch; pre-1.0), updates CHANGELOG.md and
+# frontend/package.json. Merging that PR creates the git tag vX.Y.Z and a GitHub
+# Release. chore/ci/docs/refactor commits do not trigger a release on their own.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
