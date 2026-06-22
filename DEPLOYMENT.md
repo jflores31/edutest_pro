@@ -12,7 +12,7 @@ Esta guía contiene **todo lo necesario** para levantar el proyecto desde cero e
 | Docker Compose | v2.20+ | Plugin moderno, no `docker-compose` legacy |
 | Git | 2.30+ | Solo si se clona desde repositorio |
 | Espacio en disco | ≥ 5 GB | Imágenes + volúmenes |
-| RAM disponible | ≥ 4 GB | Para los 7 contenedores |
+| RAM disponible | ≥ 4 GB | Para los 5 contenedores |
 | Puertos libres en host | `80`, `5433`, `6380` | Configurables en `.env` |
 
 **Sistema operativo:** Linux, macOS o Windows con WSL2 / Docker Desktop. No requiere Python, Node ni PostgreSQL instalados localmente — todo corre dentro de Docker.
@@ -25,11 +25,10 @@ Lo que **debes copiar** al ambiente destino (todo lo no listado se reconstruye s
 
 ```
 edutest_pro/
-├── backend/                # Código Django (apps, services, tasks, config)
-│   ├── apps/exams/         # Modelos, vistas, serializers, migraciones
-│   ├── config/             # settings.py, urls.py, celery.py, middleware
+├── backend/                # Código Django (apps, services, config)
+│   ├── apps/exams/         # Modelos, vistas, serializers, migraciones, management commands
+│   ├── config/             # settings.py, urls.py, wsgi.py, middleware
 │   ├── services/           # Lógica de negocio (exam_engine, attempt, import)
-│   ├── tasks/              # Tareas Celery
 │   ├── Dockerfile
 │   ├── entrypoint.sh
 │   ├── manage.py
@@ -120,7 +119,7 @@ Editar `.env` y reemplazar los valores marcados como `change-me-*`. Los **críti
 | `POSTGRES_PASSWORD` | Password fuerte aleatorio (≥ 20 caracteres) |
 | `DATABASE_URL` | Debe contener el `POSTGRES_PASSWORD` que pusiste arriba |
 | `REDIS_PASSWORD` | Password fuerte aleatorio |
-| `CELERY_BROKER_URL` / `CELERY_RESULT_BACKEND` / `CACHE_URL` | Deben contener el `REDIS_PASSWORD` que pusiste arriba |
+| `CACHE_URL` | Debe contener el `REDIS_PASSWORD` que pusiste arriba |
 | `ALLOWED_HOSTS` | Dominio público del nuevo ambiente (ej. `evaluaciones.misitio.com`) — siempre incluir `localhost,127.0.0.1,backend` |
 | `CSRF_TRUSTED_ORIGINS` | URL pública con esquema (ej. `https://evaluaciones.misitio.com`) |
 | `CORS_ALLOWED_ORIGINS` | Mismas URLs que CSRF |
@@ -139,12 +138,12 @@ CSRF_COOKIE_SECURE=True
 
 ```bash
 make setup    # si no existe .env, copia .env.example → .env; crea ./data/postgres y ./data/redis
-make up       # docker compose up --build -d → construye y levanta los 7 contenedores
+make up       # docker compose up --build -d → construye y levanta los 5 contenedores
 ```
 
 > **Nota sobre `./data/`:** Estos directorios son scaffold legado y están vacíos. Los datos reales viven en **volúmenes Docker nombrados** (`postgres_data`, `redis_data`, `static_files`, `media_files`) — gestionados por Docker, no en bind mounts del proyecto. Por eso `make clean` (`docker compose down -v`) sí destruye los datos aunque `./data/` aparente estar vacío.
 
-El primer `make up` toma 3–8 minutos. Docker descarga 5 imágenes base (`postgres:16-alpine`, `redis:7-alpine`, `nginx:1.27-alpine`, `python:3.12-slim`, `node:20-alpine`), construye 2 imágenes propias (la del backend — reutilizada por `celery` y `celery-beat` — y la del frontend), instala dependencias y compila el bundle Vite.
+El primer `make up` toma 3–8 minutos. Docker descarga 5 imágenes base (`postgres:16-alpine`, `redis:7-alpine`, `nginx:1.27-alpine`, `python:3.12-slim`, `node:20-alpine`), construye 2 imágenes propias (backend y frontend), instala dependencias y compila el bundle Vite.
 
 `entrypoint.sh` del backend automáticamente:
 1. Espera a Postgres (`wait_for_db`)
@@ -164,13 +163,13 @@ make redis                              # dentro del CLI: PING → PONG
 | Servicio | Healthcheck propio | Estado esperado |
 |---|---|---|
 | `postgres`, `redis`, `backend`, `frontend` | Sí | `Up (healthy)` |
-| `celery`, `celery-beat`, `nginx` | No (dependen de `backend healthy`) | `Up` solamente |
+| `nginx` | No (depende de `backend healthy`) | `Up` solamente |
 
 Si algo falla:
 ```bash
 make logs        # logs de todos los contenedores
 make logs-b      # solo backend
-docker compose logs celery-beat
+docker compose logs nginx
 ```
 
 ### 3.5. Crear superusuario administrador
@@ -227,7 +226,7 @@ docker compose exec -T postgres pg_restore -U edutest -d edutest --clean --if-ex
 docker run --rm -v edutest_pro_media_files:/data -v "$PWD":/backup alpine \
     sh -c "cd /data && tar xzf /backup/media_backup.tar.gz"
 
-# Arrancar el resto (backend, celery, frontend, nginx)
+# Arrancar el resto (backend, frontend, nginx)
 make up
 ```
 
@@ -326,7 +325,9 @@ Luego `docker compose build frontend && docker compose up -d frontend`.
 # Logs
 make logs              # todos los contenedores
 make logs-b            # backend
-make logs-beat         # celery-beat
+
+# Detección de abandono (reemplaza a Celery Beat — ver §6.1)
+make detect-abandoned  # docker compose exec backend python manage.py detect_abandoned
 
 # Acceso a contenedores
 make shell             # Django shell
@@ -341,13 +342,27 @@ make test-parallel     # pytest -n auto
 docker compose exec backend pytest apps/exams/tests/test_views.py -k "test_login" -v
 
 # Rebuild parcial tras cambios
-docker compose build backend celery celery-beat && docker compose up -d
+docker compose build backend && docker compose up -d
 docker compose build frontend && docker compose up -d
 
 # Parar / limpiar
 make down              # detiene contenedores (conserva volúmenes)
 make clean             # detiene Y borra volúmenes — ¡pierdes los datos!
 ```
+
+### 6.1. Programar la detección de abandono (sin Celery)
+
+Ya no hay `celery-beat`. La transición de intentos `IN_PROGRESS` → `ABANDONED` se hace con el
+comando `python manage.py detect_abandoned`. Hay dos formas de programarlo:
+
+- **Despliegue free-tier (Vercel/Render):** el workflow `.github/workflows/detect-abandoned.yml`
+  ya lo corre cada 10 min gratis (configura los GitHub repo secrets — ver `DEPLOY_FREE_TIER.md` §5).
+- **Self-hosted (Docker):** añade un cron en el host que invoque el comando dentro del contenedor:
+
+  ```cron
+  # /etc/cron.d/edutest-detect-abandoned  — cada 10 minutos
+  */10 * * * *  cd /ruta/a/edutest_pro && docker compose exec -T backend python manage.py detect_abandoned >> /var/log/edutest-detect.log 2>&1
+  ```
 
 ---
 
@@ -373,12 +388,13 @@ docker run --rm -v edutest_pro_media_files:/data -v "$PWD/backups":/backup alpin
 
 Antes de declarar el ambiente como listo:
 
-- [ ] `docker compose ps` muestra 4 servicios `(healthy)` (postgres, redis, backend, frontend) y 3 simplemente `Up` (celery, celery-beat, nginx)
+- [ ] `docker compose ps` muestra 4 servicios `(healthy)` (postgres, redis, backend, frontend) y 1 simplemente `Up` (nginx)
 - [ ] `curl http://<host>/api/health/` devuelve `200 OK`
 - [ ] Login del admin funciona en `http://<host>/login`
 - [ ] El dashboard carga sin errores en consola del navegador
-- [ ] `docker compose logs celery-beat` muestra `Scheduler: Sending due task`
-- [ ] `docker compose logs celery` muestra `celery@... ready`
+- [ ] `make detect-abandoned` corre sin error (imprime `Marked N attempt(s) as abandoned.`)
+- [ ] Cron del host (o GitHub Actions) programado para `detect_abandoned` (ver §6.1)
+- [ ] Una importación de preguntas funciona end-to-end (corre síncrona en la request)
 - [ ] Crear un examen de prueba y simular un intento funciona end-to-end
 - [ ] `.env` tiene `SECRET_KEY`, `POSTGRES_PASSWORD`, `REDIS_PASSWORD` distintos a los del template
 - [ ] `DEBUG=False` y `ALLOWED_HOSTS` contiene el dominio público real
@@ -398,8 +414,10 @@ Antes de declarar el ambiente como listo:
 **"CSRF verification failed" al loguear**
 → Falta el dominio en `CSRF_TRUSTED_ORIGINS` del `.env`. Debe incluir el esquema (`https://midominio.com`, no `midominio.com`).
 
-**Celery beat no dispara `detect_abandoned_attempts_task`**
-→ La tarea se crea en la primera ejecución vía `DatabaseScheduler`. Conéctate al admin (`/admin/django_celery_beat/`) y verifica que existe. Si no, crea una `PeriodicTask` apuntando a `tasks.import_tasks.detect_abandoned_attempts_task` con intervalo de 5 min.
+**Los intentos no pasan a `ABANDONED`**
+→ Ya no hay Celery Beat. La detección la hace `python manage.py detect_abandoned`, que debe
+estar programado (cron del host o GitHub Actions — ver §6.1). Pruébalo a mano con
+`make detect-abandoned`; si marca intentos, el comando funciona y solo falta el scheduler.
 
 **Migraciones fallan con "duplicate key value"**
 → La migración `0006` ya maneja deduplicación de `IN_PROGRESS` con `RunPython`. Si aparece en otra migración, ejecuta en `make psql` para limpiar manualmente antes de re-correr `migrate`.
@@ -427,9 +445,9 @@ docker compose up -d
 
 Si una migración corrupta dejó la DB en mal estado, restaura desde el último dump:
 ```bash
-docker compose stop backend celery celery-beat
+docker compose stop backend
 docker compose exec postgres pg_restore -U edutest -d edutest --clean --if-exists /tmp/last_good.dump
-docker compose start backend celery celery-beat
+docker compose start backend
 ```
 
 ---

@@ -1,110 +1,258 @@
 # EduTest Pro
 
-Plataforma multi-tenant para crear, aplicar y calificar exámenes en línea, con
-panel docente, banco de preguntas, monitoreo en vivo y rendición segura para
-estudiantes. Calificación en escala **vigesimal (0–20)**, aprobación **≥ 11**.
+Plataforma de evaluaciones académicas multi-tenant con panel para docentes y flujo de examen para alumnos.
 
-- **Backend:** Django 4.2 + Django REST Framework, PostgreSQL, Redis.
-- **Frontend:** React 19 + Vite 8, Tailwind CSS v4, react-router 7 (sin Axios/Recharts).
-- **Async:** detección de abandono por comando programado (sin Celery).
+## Stack
 
-> Documentación complementaria: [`CLAUDE.md`](CLAUDE.md) (arquitectura detallada),
-> [`DEPLOYMENT.md`](DEPLOYMENT.md) (despliegue con Docker) y
-> [`DEPLOY_FREE_TIER.md`](DEPLOY_FREE_TIER.md) (Vercel + Render + Supabase + Upstash).
+| Capa | Tecnología |
+|---|---|
+| **Backend** | Django 4 + DRF + SimpleJWT + Redis + PostgreSQL |
+| **Frontend** | React 19 + Vite 8 + Tailwind CSS v4 |
+| **Infra** | Docker Compose — 5 contenedores |
+
+> **Sin dependencias pesadas:** native `fetch` (no Axios), no React Query, no Recharts, no Framer Motion. Los gráficos son SVG custom.
 
 ---
 
-## Características
+## Inicio rápido
 
-- **Multi-tenancy:** cada consulta se aísla por `organization`. Acceso cruzado bloqueado.
-- **Roles:** ADMIN · TEACHER · STUDENT (los estudiantes acceden por código, sin cuenta).
-- **Exámenes:** creación, publicación, archivado, duplicado, plantillas y límite de intentos.
-- **ExamSnapshot:** al iniciar un intento se congela una copia inmutable del examen;
-  editar preguntas después no afecta a intentos en curso.
-- **Rendición segura:** JWT de estudiante en memoria, autosave con debounce,
-  heartbeat, temporizador con auto-entrega y registro de eventos de proctoring.
-- **Importación masiva:** CSV/XLSX con validación previa (todo-o-nada).
-- **Dashboard y analítica:** KPIs, gráficos SVG propios, heatmaps, comparación de exámenes.
-- **Monitoreo en vivo:** intentos en progreso actualizados cada 15 s.
+```bash
+make setup     # copia .env.example → .env y crea directorios de datos
+make up        # construye imágenes y levanta todos los contenedores
+make superuser # crea usuario administrador interactivamente
+```
+
+Acceso por defecto: `admin` / `Admin1234!` en `http://localhost`
+
+---
+
+## Comandos útiles
+
+```bash
+make logs          # tail de todos los contenedores
+make logs-b        # tail solo del backend
+make test          # pytest completo dentro del contenedor backend
+make test-parallel # pytest -n auto
+make shell         # Django shell interactivo
+make psql          # cliente psql dentro del contenedor postgres
+make redis         # Redis CLI
+
+# Rebuild parcial (solo backend Python)
+docker compose build backend && docker compose up -d
+
+# Rebuild parcial (solo frontend)
+docker compose build frontend && docker compose up -d
+
+# Test de un archivo o función específica
+docker compose exec backend pytest apps/exams/tests/test_views.py -k "test_name" -v
+
+# Migraciones tras cambios en modelos
+docker compose exec backend python manage.py makemigrations
+docker compose exec backend python manage.py migrate
+```
 
 ---
 
 ## Arquitectura
 
 ```
-Navegador
-  ├─ Frontend (React/Vite)  ──/api/v1/*──►  Backend (Django REST + Gunicorn)
-  │                                              ├─ PostgreSQL
-  │                                              └─ Redis (caché, heartbeat, rate-limit)
-  └─ Rendición de examen (JWT de estudiante, header `Authorization: Student <jwt>`)
+Browser → Nginx (:80)
+            ├── /api/v1/*       → Backend Gunicorn (:8000)
+            ├── /*              → Frontend SPA (React/Vite)
+            └── /static, /media → Volúmenes Docker
 
-Detección de abandono: `python manage.py detect_abandoned` (programado por cron)
+Backend → PostgreSQL (:5433 host) + Redis (:6380 host — caché/heartbeat)
 ```
 
-| Capa | Ubicación |
+**Sin Celery:** los imports corren **síncronos** dentro de la request y la detección de
+abandono es el comando `python manage.py detect_abandoned`, programado por un cron gratis de
+GitHub Actions (`.github/workflows/detect-abandoned.yml`).
+
+### Contenedores
+
+| Contenedor | Rol |
 |---|---|
-| Modelos de dominio | `backend/apps/exams/models.py` |
-| Vistas (HTTP) | `backend/apps/exams/views/` |
-| Lógica de negocio | `backend/services/` (`exam_engine`, `attempt_service`, `import_service`) |
-| Auth de estudiante | `backend/apps/exams/auth.py` |
-| Frontend (SPA) | `frontend/src/` (`app/`, `features/`, `components/`, `services/api.js`) |
-
-Núcleo del dominio (nodos más conectados del grafo del proyecto):
-`Organization`, `Attempt`, `ExamEngine`, `Question`, `Exam`, `Student`, `ExamSnapshot`.
+| `edutest_nginx` | Reverse proxy + sirve el SPA |
+| `edutest_backend` | API Django/Gunicorn |
+| `edutest_frontend` | Build Vite servido por nginx interno |
+| `edutest_postgres` | Base de datos principal |
+| `edutest_redis` | Caché + heartbeat de intentos + rate-limit + tokens revocados |
 
 ---
 
-## Inicio rápido (Docker)
+## Backend — `backend/`
+
+### Modelos (`apps/exams/models.py`)
+
+```
+Organization (tenant raíz)
+ └── User (ADMIN | TEACHER | STUDENT)
+      └── UserIntegration (key, connected bool)
+ └── Course
+      └── Student (sin cuenta User — auth por código + nombres; `code` = DNI de 8 dígitos, único por org)
+ └── Question (versionada, metadata JSON)
+ └── Exam ──M2M(ExamQuestion)──► Question
+      ├── ExamSnapshot (copia JSON inmutable al iniciar el intento)
+      └── Attempt (IN_PROGRESS | COMPLETED | ABANDONED)
+           ├── AttemptAnswer (autoguardado por pregunta)
+           └── ProctoringEvent (TAB_SWITCH, FOCUS_LOST, RECONNECT, OFFLINE)
+ └── ExamTemplate
+ └── ImportJob
+ └── Notification (in-app — tipo, título, cuerpo, org)
+```
+
+### Escala de notas
+
+- `Attempt.score` almacena nota **vigesimal 0–20**
+- Umbral de aprobación: **score ≥ 11** (`PASS_THRESHOLD = 11`)
+- El dashboard devuelve `avg_score` en la misma escala 0–20
+- Para mostrar en porcentaje: `score × 5`
+
+### Autenticación
+
+- **Docentes/Admin:** cookies httpOnly (`access_token` + `refresh_token`). El middleware `CookieAuthMiddleware` inyecta el token como `Authorization: Bearer` transparentemente.
+- **Alumnos:** `StudentAttemptAuthentication` — header `Authorization: Student <jwt>`. Payload contiene `attempt_id`, `student_id`, `org_id`, `exam_id`. Token vive en memoria (no localStorage).
+- **Refresh:** `POST /auth/refresh/` sin body — lee `refresh_token` cookie y rota ambos tokens como nuevas cookies httpOnly.
+
+### Multi-tenancy
+
+Todos los querysets filtran por `organization_id` del usuario autenticado. Acceso cruzado lanza `CrossTenantAccessError`.
+
+### Caché y heartbeat
+
+| Clave Redis | TTL | Propósito |
+|---|---|---|
+| `dashboard_stats_{org_id}_{course_id}` | 300 s | Payload completo del dashboard |
+| `edutest:heartbeat:{attempt_id}` | max(1200 s, duración_examen + 600 s) | Prueba de vida del intento |
+| `edutest:revoked_token:{jti}` | — | Tokens de alumno revocados |
+
+### Notificaciones in-app
+
+Al completar un examen, `ExamEngine.submit_exam()` crea automáticamente:
+- `attempt_finished` — siempre
+- `low_score` — si `score < 11`
+
+`GET /api/v1/notifications/` devuelve las últimas 30 notificaciones de la organización.
+
+Las preferencias de email se gestionan en `GET/PATCH /api/v1/auth/me/notifications/` y devuelven `[{key, on}]`.
+
+### Migraciones (`apps/exams/migrations/`)
+
+| Migración | Cambio |
+|---|---|
+| 0001–0005 | Modelos base, constraints iniciales |
+| 0006 | Constraints únicos para IN_PROGRESS + RunPython deduplicación |
+| 0007 | No-op intencional |
+| 0008 | `Attempt.extra_time_minutes` |
+| 0009 | `ImportJob.draft_token` UUID |
+| 0010 | Student unique constraint (RunSQL idempotente) |
+| 0011 | `Exam.max_attempts` |
+| 0012 | Modelo `Notification` |
+
+---
+
+## Frontend — `frontend/src/`
+
+### Rutas (`App.jsx`)
+
+```
+/login                       — Login docente
+/forgot-password             — Solicitud de reset de contraseña
+/reset-password?uid=&token=  — Confirmación de reset
+/exam/:slug                  — StudentLoginPage (pública)
+/exam/:slug/run              — ExamRunPage (JWT alumno)
+/exam/:slug/results          — StudentResultsPage
+
+/teacher/*  (protegido, AppShell)
+  dashboard      — Métricas generales
+  exams          — Lista de exámenes
+  exams/new      — Crear examen
+  exams/:id/edit — Editar examen
+  bank           — Banco de preguntas
+  students       — Lista de alumnos
+  students/:id   — Perfil de alumno
+  import         — Importar preguntas y alumnos
+  monitoring     — Monitoreo en vivo
+  compare        — Comparativa de exámenes
+  attempts/:id   — Detalle de intento
+  settings       — Configuración (cuenta, cursos, integraciones, notificaciones, plantillas)
+```
+
+### Cliente API (`src/services/api.js`)
+
+- `fetch` nativo con refresh silencioso en 401 (cola para evitar múltiples refreshes concurrentes)
+- Timeout global de 30 s con AbortController
+- `getAll()` sigue paginación DRF automáticamente
+- Módulos: `auth`, `exams`, `questions`, `attempts`, `students`, `courses`, `templates`, `dashboard`, `integrations`, `notifications`, `imports`
+
+### Notificaciones frontend
+
+- `NotificationBell` en el Sidebar: muestra badge con conteo de no leídas (compara `created_at` vs `localStorage.notifications_last_seen`)
+- Dropdown con las últimas 30 notificaciones, ícono por tipo, tiempo relativo
+- `SettingsPage` tab "Notificaciones": usa las keys reales del backend; convierte respuesta `[{key, on}]` → `{key: bool}` para los Toggles
+
+### Patrones clave
+
+- **Autosave:** 600 ms debounce en ExamRunPage
+- **Heartbeat:** cada 25 s durante el examen
+- **mountedRef:** todos los componentes con fetch usan alive guard para evitar setState post-unmount
+- **Gráficos:** SVG/HTML custom — BarChart, DonutChart, Histogram, Heatmap, Sparkline
+- **ChartSkeleton:** placeholder de carga para todos los contenedores de gráficos
+
+---
+
+## Importación y exportación de datos
+
+Todo el parseo de archivos corre en el **backend** (CSV con coma / `;` / tab, con o sin
+BOM, UTF-8 o Latin-1; y `.xlsx` vía openpyxl). Máx 10 MB / 2 000 filas.
+
+### Alumnos
+
+- **Importar** (`POST /students/import/`, multipart `file` + `course_id`): columnas
+  **`DNI, Nombres, Apellidos`** (+ `Correo` opcional). El docente elige el curso destino en
+  la UI (lista de alumnos → "Importar alumnos", o pestaña Importar). El **DNI debe tener
+  exactamente 8 dígitos (solo números)**; se guarda como `Student.code` y es único por
+  organización (DNI repetido → se omite; DNI inválido → fila reportada y omitida).
+- **Exportar** (`GET /students/export/?course_id=`): CSV `DNI,Nombres,Apellidos` (BOM para
+  Excel, guard anti-inyección de fórmulas). Respeta el filtro de curso.
+- **CRUD**: editar y eliminar alumno desde la lista (eliminar es seguro aun con intentos —
+  `Attempt.student` es `SET_NULL`).
+
+### Preguntas / exámenes
+
+- **Importar** (`POST /exams/import/`, crea examen + preguntas): plantilla de **8 columnas**
+  `Pregunta, Opción A–D, Respuesta Correcta, Explicación, Tema`. El **tipo se detecta solo**:
+  - opciones llenas + 1 respuesta correcta (`B`) → **opción única**
+  - opciones llenas + varias correctas (`A,C`) → **opción múltiple**
+  - opciones vacías + `Verdadero`/`Falso` → **Verdadero/Falso**
+  - sin opciones + texto → **respuesta corta**
+
+  Una columna `Tipo` opcional (acepta español: "Verdadero/Falso", "Opción múltiple"…) la
+  sobreescribe. Flujo con vista previa editable + confirmación.
+
+---
+
+## Variables de entorno
+
+`.env` (gitignoreado) maneja todos los secretos. Plantilla: `.env.example`.
+
+Variables críticas: `SECRET_KEY`, `DATABASE_URL`, `CACHE_URL`, `REDIS_PASSWORD`.
+
+Sentry es opcional: define `SENTRY_DSN` en `.env` para habilitarlo (si está vacío, la integración se deshabilita).
+
+---
+
+## Tests
 
 ```bash
-make setup        # crea .env desde .env.example y los directorios de datos
-make up           # levanta los contenedores (build + up -d)
-make migrate      # aplica migraciones (también corre en cada arranque)
-make superuser    # crea un superusuario
+# Todos los tests
+make test
+
+# Paralelo
+make test-parallel
+
+# Un test específico
+docker compose exec backend pytest apps/exams/tests/test_views.py -k "test_name" -v
 ```
 
-App en `http://localhost`. Credenciales de desarrollo (seed): `admin` / `Admin1234!`.
-
-### Frontend en local (sin Docker)
-
-```bash
-cd frontend
-npm install
-npm run dev        # http://localhost:5173, proxy /api → http://localhost:8000
-```
-
-### Pruebas
-
-```bash
-make test           # pytest (dentro del contenedor backend)
-make test-parallel  # pytest -n auto
-```
-
----
-
-## Estructura del repositorio
-
-```
-backend/            Django + DRF (apps/exams, services, tasks, config)
-frontend/           React + Vite (src/app, src/features, src/components, src/services)
-nginx/              Configuración de Nginx (despliegue Docker)
-postgres/           Init de PostgreSQL
-render.yaml         Blueprint de despliegue del backend en Render
-docker-compose.yml  Orquestación local (postgres, redis, backend, frontend, nginx)
-.github/workflows/  CI + cron de detección de abandono
-```
-
----
-
-## Despliegue gratuito
-
-Stack objetivo: **Vercel** (frontend) · **Render** (backend) · **Supabase**
-(PostgreSQL) · **Upstash** (Redis). El cron de detección de abandono corre vía
-GitHub Actions. Pasos completos en [`DEPLOY_FREE_TIER.md`](DEPLOY_FREE_TIER.md).
-
----
-
-## Versionado
-
-El proyecto sigue [SemVer](https://semver.org/lang/es/). Los cambios se
-registran en [`CHANGELOG.md`](CHANGELOG.md) y se etiquetan en git (`vX.Y.Z`).
+Los tests viven en `backend/apps/exams/tests/test_views.py`. Los fixtures están en `backend/conftest.py` con helpers `make_*`: `api_client`, `org`, `teacher`, `course`, `student`, `question`.

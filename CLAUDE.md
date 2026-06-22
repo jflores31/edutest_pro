@@ -37,9 +37,9 @@ make shell
 make redis
 ```
 
-When only backend Python files change, rebuild just those images to save time:
+When only backend Python files change, rebuild just that image to save time:
 ```bash
-docker compose build backend celery celery-beat
+docker compose build backend
 docker compose up -d
 ```
 
@@ -63,13 +63,15 @@ Browser → Nginx (:80)
             ├── /*          → Frontend SPA (React/Vite, served by Nginx)
             └── /static, /media → Docker volumes
 
-Backend → PostgreSQL (:5433 host) + Redis (:6380 host)
-Celery worker → Redis (same broker)
-Celery beat  → Redis (same broker) — schedules periodic tasks via DatabaseScheduler
+Backend → PostgreSQL (:5433 host) + Redis (:6380 host — cache/heartbeat only)
 ```
 
-Seven containers: `edutest_nginx`, `edutest_backend`, `edutest_celery`, `edutest_celery_beat`, `edutest_frontend`, `edutest_postgres`, `edutest_redis`.  
-All have healthchecks. Nginx, Celery, and Celery Beat wait for `backend` to be healthy before starting.
+No Celery. Bulk imports run **synchronously** inside the request; periodic
+abandonment detection runs via the `detect_abandoned` management command,
+scheduled by a free GitHub Actions cron (`.github/workflows/detect-abandoned.yml`).
+
+Five containers: `edutest_nginx`, `edutest_backend`, `edutest_frontend`, `edutest_postgres`, `edutest_redis`.  
+All have healthchecks. Nginx waits for `backend` to be healthy before starting.
 
 ### Backend (`backend/`)
 
@@ -113,8 +115,11 @@ All have healthchecks. Nginx, Celery, and Celery Beat wait for `backend` to be h
 | `import_service.py` | CSV/XLSX parsing, validation, atomic bulk creation of `Question` rows. |
 | `exceptions.py` | Typed service exceptions (`CrossTenantAccessError`, `ExamTimeExpiredError`, etc.) — all have `.to_dict()` for response serialization. |
 
-**Async tasks — `tasks/import_tasks.py`**  
-Celery tasks: `process_import_task`, `detect_abandoned_attempts_task`. Broker: Redis. 3 retries max.
+**Scheduled task — `apps/exams/management/commands/detect_abandoned.py`**  
+Django management command `python manage.py detect_abandoned` (replaces the old Celery Beat
+task). Run on a schedule by the free GitHub Actions cron in
+`.github/workflows/detect-abandoned.yml` (every 10 min). Imports are no longer a background
+task — they run synchronously in the request (see `imports.py` → `ImportService.process_from_job`).
 
 **Multi-tenancy rule:** Every queryset filters by `organization_id` from `request.user.organization`. Cross-tenant access raises `CrossTenantAccessError`. The `IsSameOrganization` permission class enforces object-level isolation.
 
@@ -145,9 +150,9 @@ Organization (tenant root)
 
 **ExamSnapshot pattern:** When `ExamEngine.start_exam()` runs, the entire exam structure (questions, options, metadata) is serialized into an `ExamSnapshot` row. The student session reads exclusively from the snapshot, so editing questions after launch does not affect active attempts.
 
-**Import validation:** `import_service.py` validates all rows before writing any. A single invalid row causes the entire import to fail — no partial imports. `ImportJob` tracks async status; the `process_import_task` Celery task runs the import with 3 retries. A dry-run mode is available for client-side validation preview before committing.
+**Import validation:** `import_service.py` validates all rows before writing any. A single invalid row causes the entire import to fail — no partial imports. The import runs **synchronously** in the request (`imports.py upload` → `ImportService.process_from_job`), updating `ImportJob` status to COMPLETED/FAILED. A dry-run mode is available for client-side validation preview before committing (`ImportPreviewView`/`ImportConfirmView`).
 
-**Heartbeat & abandonment detection:** `AttemptService.heartbeat()` writes key `edutest:heartbeat:{attempt_id}` to Redis with a 20-minute TTL (1 200 s). The periodic Celery task `detect_abandoned_attempts_task` scans `IN_PROGRESS` attempts whose heartbeat key has expired and transitions them to `ABANDONED`.
+**Heartbeat & abandonment detection:** `AttemptService.heartbeat()` writes key `edutest:heartbeat:{attempt_id}` to Redis with a 20-minute TTL (1 200 s). The `detect_abandoned` management command (scheduled by the GitHub Actions cron) scans `IN_PROGRESS` attempts whose heartbeat key has expired and transitions them to `ABANDONED`.
 
 **Service exceptions:** All service exceptions inherit from `EduTestError` and expose `.code` and `.to_dict()`. Views catch these and return structured JSON error responses — no raw HTTP exceptions from the service layer.
 
@@ -211,7 +216,7 @@ If the new migration adds a unique constraint on a table that may already have d
 ## Environment
 
 `.env` (gitignored) drives all secrets. Template: `.env.example`.  
-Critical variables: `SECRET_KEY`, `DATABASE_URL`, `CELERY_BROKER_URL`, `CACHE_URL`, `REDIS_PASSWORD`.  
+Critical variables: `SECRET_KEY`, `DATABASE_URL`, `CACHE_URL`, `REDIS_PASSWORD`.  
 Backend uses `python-decouple` — do not use `os.environ` directly in settings.  
 Sentry is optional: set `SENTRY_DSN` in `.env` to enable; if empty, the integration is disabled.
 

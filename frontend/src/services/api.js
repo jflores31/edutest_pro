@@ -334,7 +334,6 @@ export const students = {
   delete: (id) => del(`/students/${id}/`),
   profile: (id) => get(`/students/${id}/profile/`),
   reportCard: (id, format = 'json') => get(`/students/${id}/report-card/?output=${format}`),
-  bulkImport: (courseId, students) => post('/students/bulk/', { course_id: courseId, students }),
   importFile: (courseId, file) => {
     const fd = new FormData();
     fd.append('file', file);

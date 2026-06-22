@@ -15,10 +15,11 @@ detección de abandono es el comando `python manage.py detect_abandoned`.
 
 ---
 
-## 0. Prerrequisitos (lo que falta en el repo)
+## 0. Prerrequisitos
 
-- [ ] **Recuperar `frontend/src/`** — hoy está vacío; sin el código fuente Vercel no compila.
-- [ ] Crear repo en GitHub y `git push` (ya hay un commit base en la rama `deploy/free-tier`).
+- [x] **`frontend/src/`** — reconstruido (React 19/Vite 8/Tailwind 4); `npm run build` compila limpio.
+- [x] **Celery eliminado** — imports síncronos + cron de GitHub Actions para `detect_abandoned`.
+- [ ] Crear repo en GitHub y `git push`.
 - [ ] Cuentas en: Supabase, Upstash, Render, Vercel.
 
 ---
@@ -50,7 +51,7 @@ detección de abandono es el comando `python manage.py detect_abandoned`.
    | `CSRF_TRUSTED_ORIGINS` | `https://<tu-app>.vercel.app` |
    | `CORS_ALLOWED_ORIGINS` | `https://<tu-app>.vercel.app` |
    | `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_HOST` | de Supabase |
-   | `POSTGRES_PORT` | `6543` |
+   | `POSTGRES_PORT` | `5432` (session pooler; coincide con `render.yaml`) |
    | `POSTGRES_SSLMODE` | `require` |
    | `CACHE_URL` | la URL `rediss://` de Upstash |
 
