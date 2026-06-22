@@ -4,6 +4,21 @@ Todos los cambios notables de este proyecto se documentan aquí.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/)
 y el proyecto adopta [SemVer](https://semver.org/lang/es/).
 
+## [0.3.0](https://github.com/jflores31/edutest_pro/compare/v0.2.0...v0.3.0) (2026-06-22)
+
+
+### Features
+
+* **import:** question import auto-detects type + robust CSV parsing ([1150e05](https://github.com/jflores31/edutest_pro/commit/1150e05fad22fed6c03e83d522eb14e17cab9abb))
+* **students:** delete with confirmation + clean duplicate-DNI errors ([ef7ee42](https://github.com/jflores31/edutest_pro/commit/ef7ee423adc92bf457cf9217b9770085ed028c61))
+* **students:** enforce DNI = exactly 8 digits (numbers only) ([484c507](https://github.com/jflores31/edutest_pro/commit/484c507f4e4c4b6e505b504a403707b03cd2676f))
+* **students:** import from CSV/XLSX and export to CSV (DNI, Nombres, Apellidos) ([610f9a7](https://github.com/jflores31/edutest_pro/commit/610f9a733e4408f61dee7f3c0b309eca448b7993))
+
+
+### Bug Fixes
+
+* **students:** import tab supports XLSX and semicolon CSV ([be19a4d](https://github.com/jflores31/edutest_pro/commit/be19a4db76d3c19061947ce3de6e5141514e6416))
+
 ## [Unreleased]
 
 ## [0.2.0] — 2026-06-21
