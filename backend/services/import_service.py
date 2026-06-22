@@ -67,11 +67,86 @@ COLUMN_ALIASES: dict[str, str] = {
     "explicacion": "explanation",
     "tema": "category",
     "topic": "category",
+    "tipo": "type",
 }
 
 VALID_QUESTION_TYPES: frozenset[str] = frozenset(
     v for v in Question.QuestionType.values
 )
+
+# Sinónimos de tipo (español / lenguaje natural) → enum del modelo.
+# Nota: "opción única/normal" y "opción múltiple" son el MISMO tipo del modelo
+# (MULTIPLE_CHOICE); la diferencia única vs múltiple la da el nº de respuestas
+# correctas (una letra = única; varias como "A,C" = múltiple).
+_QUESTION_TYPE_SYNONYMS: dict[str, str] = {
+    # Verdadero / Falso
+    "boolean": "BOOLEAN", "booleano": "BOOLEAN", "bool": "BOOLEAN",
+    "true/false": "BOOLEAN", "true false": "BOOLEAN", "tf": "BOOLEAN",
+    "verdadero/falso": "BOOLEAN", "verdadero falso": "BOOLEAN",
+    "verdadero o falso": "BOOLEAN", "v/f": "BOOLEAN", "vf": "BOOLEAN",
+    # Opción múltiple (varias respuestas correctas)
+    "multiple_choice": "MULTIPLE_CHOICE", "multiple choice": "MULTIPLE_CHOICE",
+    "multiple": "MULTIPLE_CHOICE", "mc": "MULTIPLE_CHOICE",
+    "opcion multiple": "MULTIPLE_CHOICE", "opción múltiple": "MULTIPLE_CHOICE",
+    "seleccion multiple": "MULTIPLE_CHOICE", "selección múltiple": "MULTIPLE_CHOICE",
+    "varias": "MULTIPLE_CHOICE",
+    # Opción única / normal (una sola respuesta correcta) → mismo tipo del modelo
+    "opcion unica": "MULTIPLE_CHOICE", "opción única": "MULTIPLE_CHOICE",
+    "unica": "MULTIPLE_CHOICE", "única": "MULTIPLE_CHOICE",
+    "normal": "MULTIPLE_CHOICE", "opcion normal": "MULTIPLE_CHOICE",
+    "opción normal": "MULTIPLE_CHOICE", "single": "MULTIPLE_CHOICE",
+    "single choice": "MULTIPLE_CHOICE", "respuesta unica": "MULTIPLE_CHOICE",
+    "respuesta única": "MULTIPLE_CHOICE",
+    # Respuesta corta / abierta
+    "short_answer": "SHORT_ANSWER", "short answer": "SHORT_ANSWER",
+    "short": "SHORT_ANSWER", "respuesta corta": "SHORT_ANSWER",
+    "abierta": "SHORT_ANSWER", "texto": "SHORT_ANSWER", "open": "SHORT_ANSWER",
+}
+
+
+def normalize_question_type(raw: str) -> str:
+    """Normaliza el tipo de pregunta aceptando español/lenguaje natural.
+
+    Vacío → MULTIPLE_CHOICE. Si no se reconoce, devuelve el texto en mayúsculas
+    para que la validación reporte 'Tipo inválido' con el valor original.
+    """
+    key = " ".join(str(raw or "").strip().lower().split())
+    if not key:
+        return "MULTIPLE_CHOICE"
+    if key in _QUESTION_TYPE_SYNONYMS:
+        return _QUESTION_TYPE_SYNONYMS[key]
+    return key.upper().replace(" ", "_").replace("/", "_")
+
+
+# Respuestas que indican una pregunta Verdadero/Falso cuando no hay opciones.
+_BOOLEAN_ANSWERS: frozenset[str] = frozenset(
+    {"true", "false", "verdadero", "falso", "1", "0", "si", "sí", "no"}
+)
+
+
+def infer_question_type(row: dict) -> str:
+    """Deduce el tipo cuando el archivo NO trae columna 'Tipo'.
+
+    - Opciones A–D presentes       → MULTIPLE_CHOICE (única o múltiple según el
+      número de respuestas correctas: 'B' = única; 'A,C' = múltiple).
+    - Sin opciones y respuesta V/F → BOOLEAN.
+    - Sin opciones y texto libre   → SHORT_ANSWER.
+    """
+    has_options = any(
+        (row.get(f"option_{k}", "") or "").strip() for k in ("a", "b", "c", "d")
+    )
+    if has_options:
+        return "MULTIPLE_CHOICE"
+    correct = (row.get("correct_answer", "") or "").strip().lower()
+    if correct in _BOOLEAN_ANSWERS:
+        return "BOOLEAN"
+    return "SHORT_ANSWER"
+
+
+def resolve_question_type(row: dict) -> str:
+    """Usa la columna 'Tipo' si está presente; si no, infiere de la fila."""
+    raw = (row.get("type", "") or "").strip()
+    return normalize_question_type(raw) if raw else infer_question_type(row)
 
 MAX_FILE_SIZE_BYTES: int = 10 * 1024 * 1024   # 10 MB
 MAX_ROWS: int = 2_000
@@ -247,7 +322,7 @@ class ImportService:
 
         preview_rows = []
         for row in rows:
-            question_type = row.get("type", "").strip().upper() or "MULTIPLE_CHOICE"
+            question_type = resolve_question_type(row)
             preview_rows.append({
                 "_id": str(uuid.uuid4()),
                 "text": row.get("text", ""),
@@ -279,7 +354,7 @@ class ImportService:
         for row in rows:
             row_id = row.get("_id", "unknown")
             text = row.get("text", "").strip()
-            question_type = row.get("question_type", "MULTIPLE_CHOICE").strip().upper()
+            question_type = normalize_question_type(row.get("question_type", ""))
 
             if not text:
                 errors.append({"row_id": row_id, "field": "text", "message": "El enunciado no puede estar vacío."})
@@ -331,7 +406,7 @@ class ImportService:
         for row in rows:
             normalized.append({
                 "text": row.get("text", "").strip(),
-                "type": row.get("question_type", "MULTIPLE_CHOICE").strip().upper(),
+                "type": normalize_question_type(row.get("question_type", "")),
                 "option_a": row.get("option_a", ""),
                 "option_b": row.get("option_b", ""),
                 "option_c": row.get("option_c", ""),
@@ -513,10 +588,29 @@ class ImportService:
             yield from self._parse_csv(file)
 
     def _parse_csv(self, file: IO[bytes]) -> Iterator[dict[str, str]]:
-        """Parsea un archivo CSV con detección automática de dialecto."""
+        """Parsea CSV detectando delimitador (',', ';' o tab) y encoding.
+
+        - Encoding: UTF-8 (con BOM de Excel); si falla, Windows-1252/Latin-1.
+        - Delimitador: autodetecta (Excel en español suele exportar con ';').
+        """
+        raw = file.read()
+        if isinstance(raw, str):
+            content = raw
+        else:
+            try:
+                content = raw.decode("utf-8-sig")  # maneja BOM de Excel
+            except UnicodeDecodeError:
+                content = raw.decode("cp1252", errors="replace")
+
+        first_line = content.split("\n", 1)[0]
         try:
-            content = file.read().decode("utf-8-sig")  # maneja BOM de Excel
-            reader = csv.DictReader(io.StringIO(content))
+            delimiter = csv.Sniffer().sniff(first_line, delimiters=",;\t").delimiter
+        except csv.Error:
+            counts = {d: first_line.count(d) for d in (",", ";", "\t")}
+            delimiter = max(counts, key=counts.get) if any(counts.values()) else ","
+
+        try:
+            reader = csv.DictReader(io.StringIO(content), delimiter=delimiter)
 
             if reader.fieldnames is None:
                 raise ImportFileFormatError("El CSV no tiene encabezados válidos.")
@@ -524,7 +618,7 @@ class ImportService:
             # Normalizar y traducir nombres de columnas (soporta español)
             normalized_headers = [
                 COLUMN_ALIASES.get(h.strip().lower(), h.strip().lower())
-                for h in reader.fieldnames
+                for h in reader.fieldnames if h is not None
             ]
             missing = REQUIRED_COLUMNS - set(normalized_headers)
             if missing:
@@ -534,14 +628,10 @@ class ImportService:
 
             for row in reader:
                 yield {
-                    COLUMN_ALIASES.get(k.strip().lower(), k.strip().lower()): (v or "").strip()
-                    for k, v in row.items()
+                    COLUMN_ALIASES.get((k or "").strip().lower(), (k or "").strip().lower()): (v or "").strip()
+                    for k, v in row.items() if k is not None
                 }
 
-        except UnicodeDecodeError as exc:
-            raise ImportFileFormatError(
-                f"El archivo CSV no es UTF-8 válido: {exc}"
-            ) from exc
         except csv.Error as exc:
             raise ImportFileFormatError(f"Error al parsear CSV: {exc}") from exc
 
@@ -613,7 +703,7 @@ class ImportService:
             errors.append(RowError(row=row_num, column="text", message="El enunciado no puede estar vacío."))
 
         # 2. Campo 'type' — si no se especifica, se asume MULTIPLE_CHOICE
-        question_type = row.get("type", "").strip().upper() or "MULTIPLE_CHOICE"
+        question_type = resolve_question_type(row)
         if question_type not in VALID_QUESTION_TYPES:
             errors.append(
                 RowError(
@@ -770,7 +860,7 @@ class ImportService:
         Returns:
             Instancia de Question lista para bulk_create.
         """
-        question_type = row.get("type", "").strip().upper() or "MULTIPLE_CHOICE"
+        question_type = resolve_question_type(row)
         metadata = self._build_metadata(question_type, row)
 
         return Question(

@@ -45,11 +45,15 @@ function DropZone({ onFile, dragOver, setDragOver, inputRef }) {
   );
 }
 
-function DownloadTemplate({ columns, filename, example }) {
+function DownloadTemplate({ columns, filename, examples }) {
+  function csvField(v) {
+    const s = String(v ?? '');
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  }
   function download() {
-    const header = columns.join(',');
-    const row = example.join(',');
-    const blob = new Blob([`${header}\n${row}\n`], { type: 'text/csv;charset=utf-8;' });
+    const lines = [columns, ...examples].map(row => row.map(csvField).join(','));
+    // BOM → Excel abre como UTF-8 (tildes/ñ correctas)
+    const blob = new Blob(['\uFEFF' + lines.join('\n') + '\n'], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = filename; a.click();
@@ -65,13 +69,23 @@ function DownloadTemplate({ columns, filename, example }) {
 // ── Import Exámenes ─────────────────────────────────────────────────────────
 
 const EXAM_COLUMNS = [
-  '"Pregunta"', '"Opción A"', '"Opción B"', '"Opción C"', '"Opción D"',
-  '"Respuesta Correcta"', '"Explicación"', '"Tema"',
+  'Pregunta', 'Opción A', 'Opción B', 'Opción C', 'Opción D',
+  'Respuesta Correcta', 'Explicación', 'Tema',
 ];
-const EXAM_EXAMPLE = [
-  '"¿Cuál es la capa de transporte del modelo OSI?"',
-  '"Capa de Red"', '"Capa de Transporte"', '"Capa de Sesión"', '"Capa de Aplicación"',
-  '"B"', '"La capa de transporte gestiona TCP y UDP"', '"Redes"',
+// El tipo se infiere de la fila (no hay columna "Tipo"):
+//  - opción única: opciones llenas + 1 letra correcta
+//  - opción múltiple: opciones llenas + varias correctas (A,C)
+//  - verdadero/falso: opciones vacías + Verdadero/Falso
+const EXAM_EXAMPLES = [
+  ['¿Cuál es la capa de transporte del modelo OSI?',
+   'Capa de Red', 'Capa de Transporte', 'Capa de Sesión', 'Capa de Aplicación',
+   'B', 'La capa de transporte gestiona TCP y UDP', 'Redes'],
+  ['El modelo OSI tiene 7 capas',
+   '', '', '', '',
+   'Verdadero', 'El modelo OSI define 7 capas', 'Redes'],
+  ['Marca los protocolos de la capa de transporte',
+   'TCP', 'UDP', 'IP', 'HTTP',
+   'A,B', 'TCP y UDP operan en la capa de transporte', 'Redes'],
 ];
 
 // ── Format info card (shared) ────────────────────────────────────────────────
@@ -88,9 +102,9 @@ function FormatInfoCard() {
         </div>
         <div className="flex items-center gap-2">
           <DownloadTemplate
-            columns={EXAM_COLUMNS.map(c => c.replace(/"/g, ''))}
+            columns={EXAM_COLUMNS}
             filename="plantilla-preguntas.csv"
-            example={EXAM_EXAMPLE.map(c => c.replace(/^"|"$/g, ''))}
+            examples={EXAM_EXAMPLES}
           />
           <button
             onClick={() => setExpanded(!expanded)}
@@ -112,22 +126,32 @@ function FormatInfoCard() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1 text-xs text-fg-2">
             <p><span className="text-fg-0 font-medium">Pregunta</span> — Enunciado de la pregunta <span className="text-danger">*</span></p>
-            <p><span className="text-fg-0 font-medium">Opción A / B / C / D</span> — Alternativas de respuesta</p>
-            <p><span className="text-fg-0 font-medium">Respuesta Correcta</span> — Letra de la opción (A, B, C o D) <span className="text-danger">*</span></p>
+            <p><span className="text-fg-0 font-medium">Opción A / B / C / D</span> — Alternativas (déjalas vacías en Verdadero/Falso)</p>
+            <p><span className="text-fg-0 font-medium">Respuesta Correcta</span> — Letra de la opción, o <span className="font-mono">Verdadero</span>/<span className="font-mono">Falso</span> <span className="text-danger">*</span></p>
             <p><span className="text-fg-0 font-medium">Explicación</span> — Justificación de la respuesta (opcional)</p>
             <p><span className="text-fg-0 font-medium">Tema</span> — Categoría o tema de la pregunta (opcional)</p>
           </div>
 
-          <div className="mt-4 p-3 bg-bg-3 rounded-xl">
-            <p className="text-2xs text-fg-3 font-medium mb-1">Ejemplo de fila:</p>
-            <code className="text-2xs font-mono text-fg-1 break-all">
-              "¿Cuál es la capa de transporte?","Capa de Red","Capa de Transporte","Capa de Sesión","Capa de Aplicación","B","Gestiona TCP y UDP","Redes"
-            </code>
+          <div className="mt-3 p-3 bg-accent/5 border border-accent/20 rounded-xl">
+            <p className="text-xs text-accent font-medium mb-0.5">El tipo se detecta solo</p>
+            <ul className="text-xs text-fg-2 space-y-0.5 list-disc list-inside">
+              <li><span className="text-fg-0 font-medium">Opción única</span>: opciones llenas + <span className="font-mono">1</span> letra correcta (<span className="font-mono">B</span>)</li>
+              <li><span className="text-fg-0 font-medium">Opción múltiple</span>: opciones llenas + varias correctas (<span className="font-mono">A,C</span>)</li>
+              <li><span className="text-fg-0 font-medium">Verdadero/Falso</span>: opciones vacías + <span className="font-mono">Verdadero</span> o <span className="font-mono">Falso</span></li>
+            </ul>
+          </div>
+
+          <div className="mt-4 p-3 bg-bg-3 rounded-xl space-y-1.5">
+            <p className="text-2xs text-fg-3 font-medium">Ejemplos:</p>
+            <code className="block text-2xs font-mono text-fg-1 break-all">"¿Capa de transporte del modelo OSI?","Red","Transporte","Sesión","Aplicación","B","…","Redes"</code>
+            <code className="block text-2xs font-mono text-fg-1 break-all">"El modelo OSI tiene 7 capas","","","","","Verdadero","…","Redes"</code>
+            <code className="block text-2xs font-mono text-fg-1 break-all">"Marca los de transporte","TCP","UDP","IP","HTTP","A,B","…","Redes"</code>
           </div>
 
           <div className="mt-3 p-3 bg-warn/5 border border-warn/20 rounded-xl">
             <p className="text-xs text-warn font-medium mb-0.5">Reglas de importación</p>
             <ul className="text-xs text-fg-2 space-y-0.5 list-disc list-inside">
+              <li>Formatos: <span className="font-mono">.csv</span> (coma o punto y coma) y <span className="font-mono">.xlsx</span></li>
               <li>Puedes editar cualquier fila antes de confirmar</li>
               <li>Las preguntas con errores no resueltos serán omitidas</li>
               <li>Máximo 2 000 preguntas por archivo</li>
@@ -693,7 +717,7 @@ function ImportStudentsTab() {
           <DownloadTemplate
             columns={STUDENT_COLUMNS.map(c => c.replace(/"/g, ''))}
             filename="plantilla-alumnos.csv"
-            example={STUDENT_EXAMPLE.map(c => c.replace(/^"|"$/g, ''))}
+            examples={[STUDENT_EXAMPLE.map(c => c.replace(/^"|"$/g, ''))]}
           />
         </div>
 
