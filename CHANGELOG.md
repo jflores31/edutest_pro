@@ -6,6 +6,32 @@ y el proyecto adopta [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-06-21
+
+### Added
+- **Reconstrucción completa del frontend** (React 19 + Vite 8 + Tailwind v4):
+  sistema de diseño propio (`design-system/`: Button, Card, Badge, Input, Table,
+  Tabs, Toggle, Avatar, Skeleton, Icon), módulos por dominio (`features/`:
+  charts, dashboard, import, toast, notifications, student, exams), hooks
+  reutilizables (`useDebounce`, `useLocalStorage`, `useMediaQuery`, `useCountUp`),
+  utilidades, `layout/Sidebar`, tema claro/oscuro (`ThemeContext`) y guard de
+  rutas de estudiante.
+
+### Fixed
+- **Exam-runner**: `question_type` `TRUE_FALSE`→`BOOLEAN` y el contrato de
+  respuestas de opción múltiple (`selected_key` / `selected_keys`) alineados con
+  el backend.
+- **Despliegue**: proxy `/api` de Vercel, contrato de login por `email` y seed de
+  Render corregidos.
+- **Calidad de código**: 49 errores de ESLint resueltos (lint en 0, build OK),
+  incluyendo bugs reales en runtime: botón eliminar del editor de importación
+  (`ReferenceError`), comparación de exámenes (ref no declarada), `DonutChart`
+  (hook tras un *early return*) y colisión de IDs por `Date.now()` en el editor.
+
+### Changed
+- `useMediaQuery` reescrito con `useSyncExternalStore`; componentes inline
+  *hoisted* y estado derivado en render según buenas prácticas de React.
+
 ## [0.1.1] — 2026-06-18
 
 ### Security
@@ -62,6 +88,7 @@ de un análisis completo del código.
 - Pendiente conocido: el endpoint `GET /attempts/:id/state/` expone el snapshot
   con las respuestas correctas al cliente del estudiante (a sanear en backend).
 
-[Unreleased]: https://github.com/jflores31/edutest_pro/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/jflores31/edutest_pro/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/jflores31/edutest_pro/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/jflores31/edutest_pro/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/jflores31/edutest_pro/releases/tag/v0.1.0
