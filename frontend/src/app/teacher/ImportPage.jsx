@@ -441,13 +441,40 @@ function ImportExamsTab() {
   if (phase === 'preview' && previewData) {
     const rows = previewData.rows || [];
     const total = previewData.total_rows || rows.length;
-    const errorCount = previewData.error_count || 0;
-    const errorRows = new Set((previewData.errors || []).map(e => e.row));
+
+    // El backend numera las filas con start=2 (fila 1 = cabecera): la fila de
+    // datos en el índice i corresponde a e.row === i + 2. Agrupamos por índice.
+    const errorsByIndex = {};
+    (previewData.errors || []).forEach(e => {
+      const idx = (e.row ?? 0) - 2;
+      if (idx < 0) { (errorsByIndex[-1] = errorsByIndex[-1] || []).push(e.message); return; }
+      (errorsByIndex[idx] = errorsByIndex[idx] || []).push(e.message);
+    });
+    const rowsWithErrors = Object.keys(errorsByIndex).filter(k => Number(k) >= 0).length;
+    const validCount = Math.max(0, total - rowsWithErrors);
+    const errorCount = rowsWithErrors;
 
     const TYPE_LABEL = {
       MULTIPLE_CHOICE: 'Opción múltiple',
       BOOLEAN: 'V/F',
       SHORT_ANSWER: 'Resp. corta',
+    };
+
+    // Exporta SOLO las filas con error + una columna "Error" (formato de 9 columnas).
+    const exportErrors = () => {
+      const head = ['Pregunta', 'Opción A', 'Opción B', 'Opción C', 'Opción D', 'Opción E', 'Respuesta Correcta', 'Explicación', 'Tema', 'Error'];
+      const cell = v => { const s = String(v ?? ''); return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+      const lines = [head.map(cell).join(',')];
+      rows.forEach((r, i) => {
+        const errs = errorsByIndex[i];
+        if (!errs || !errs.length) return;
+        lines.push([r.text, r.option_a, r.option_b, r.option_c, r.option_d, r.option_e, r.correct_answer, r.explanation, r.category, errs.join(' | ')].map(cell).join(','));
+      });
+      const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'errores_importacion.csv'; a.click();
+      URL.revokeObjectURL(url);
     };
 
     return (
@@ -466,6 +493,11 @@ function ImportExamsTab() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
+                {errorCount > 0 && (
+                  <Button variant="ghost" size="sm" icon={<Icon name="download" size={13} />} onClick={exportErrors}>
+                    Exportar errores
+                  </Button>
+                )}
                 <Button variant="ghost" size="sm" onClick={() => { setPhase('idle'); setPreviewData(null); }}>
                   Volver
                 </Button>
@@ -476,6 +508,32 @@ function ImportExamsTab() {
                   {mode === 'existing' ? 'Agregar preguntas' : 'Crear examen'}
                 </Button>
               </div>
+            </div>
+
+            {/* Panel de validación */}
+            <div className={`mb-4 rounded-xl border p-3 ${errorCount === 0 ? 'bg-ok/10 border-ok/30' : 'bg-danger/10 border-danger/30'}`}>
+              <div className="flex items-center gap-2 text-sm font-semibold text-fg-0">
+                <span>{errorCount === 0 ? '✅' : '❌'}</span>
+                {errorCount === 0
+                  ? 'Todas las filas son válidas'
+                  : `${rowsWithErrors} fila(s) con errores — se omitirán al importar`}
+              </div>
+              <div className="flex flex-wrap gap-4 mt-2 text-xs text-fg-2">
+                <span><b className="text-fg-0">{total}</b> detectadas</span>
+                <span><b className="text-ok">{validCount}</b> válidas</span>
+                <span><b className="text-danger">{rowsWithErrors}</b> con errores</span>
+              </div>
+              {rowsWithErrors > 0 && (
+                <ul className="mt-2 max-h-32 overflow-auto text-xs text-fg-2 space-y-0.5 border-t border-line/60 pt-2">
+                  {Object.entries(errorsByIndex)
+                    .filter(([k]) => Number(k) >= 0)
+                    .sort((a, b) => Number(a[0]) - Number(b[0]))
+                    .slice(0, 100)
+                    .map(([idx, msgs]) => (
+                      <li key={idx}><span className="font-mono text-fg-3">Pregunta {Number(idx) + 1}:</span> {msgs.join('; ')}</li>
+                    ))}
+                </ul>
+              )}
             </div>
 
             {errorMsg && (
@@ -502,8 +560,9 @@ function ImportExamsTab() {
                 </thead>
                 <tbody>
                   {rows.map((r, i) => {
-                    const hasError = errorRows.has(i + 1) || (r.errors && r.errors.length > 0);
-                    const errMsg = (previewData.errors || []).find(e => e.row === i + 1)?.message || '';
+                    const rowErrs = errorsByIndex[i] || [];
+                    const hasError = rowErrs.length > 0;
+                    const errMsg = rowErrs.join(' · ');
                     return (
                       <tr key={r._id || i} className={`border-t border-line/40 ${hasError ? 'bg-danger/5' : ''}`}>
                         <td className="px-3 py-2 text-fg-3 font-mono">{i + 1}</td>
