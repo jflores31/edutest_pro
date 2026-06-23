@@ -1,6 +1,7 @@
 import logging
 from datetime import timedelta
 
+from django.conf import settings
 from django.core.cache import cache
 from rest_framework import permissions, status
 from rest_framework.response import Response
@@ -36,7 +37,9 @@ class CookieTokenRefreshView(TokenRefreshView):
 
         data = serializer.validated_data
         response = Response(data, status=status.HTTP_200_OK)
-        is_secure = request.is_secure()
+        # Detrás del proxy de Render, request.is_secure() puede dar False; forzar
+        # Secure en producción (DEBUG=False) para que la cookie solo viaje por HTTPS.
+        is_secure = request.is_secure() or not settings.DEBUG
         samesite = "Lax"
         access_token = data.get("access", "")
         new_refresh = data.get("refresh", "")
@@ -76,7 +79,9 @@ class LoginView(TokenObtainPairView):
         response = super().post(request, *args, **kwargs)
         if response.status_code == 200:
             data = response.data
-            is_secure = request.is_secure()
+            # Detrás del proxy de Render, request.is_secure() puede dar False; forzar
+        # Secure en producción (DEBUG=False) para que la cookie solo viaje por HTTPS.
+        is_secure = request.is_secure() or not settings.DEBUG
             samesite = "Lax"
             access_token = data.get("access", "")
             refresh_token = data.get("refresh", "")
