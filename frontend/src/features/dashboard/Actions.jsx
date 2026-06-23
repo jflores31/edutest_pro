@@ -24,9 +24,9 @@ export function EmptyBanner() {
 
 export function QuickActions({ stats, liveData }) {
   const actions = useMemo(() => {
+    // 'Importar' ya está en el menú lateral; no se duplica en Acceso rápido.
     const base = [
-      { icon: 'plus',   label: 'Nuevo examen',      to: '/teacher/exams/new' },
-      { icon: 'upload', label: 'Importar preguntas', to: '/teacher/import' },
+      { icon: 'plus', label: 'Nuevo examen', to: '/teacher/exams/new' },
     ];
     if ((liveData?.proctoring_alerts_24h ?? 0) > 0) {
       base.push({ icon: 'alert', label: `${liveData.proctoring_alerts_24h} alertas`, to: '/teacher/monitoring', urgent: true });
