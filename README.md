@@ -198,6 +198,9 @@ Las preferencias de email se gestionan en `GET/PATCH /api/v1/auth/me/notificatio
 - **mountedRef:** todos los componentes con fetch usan alive guard para evitar setState post-unmount
 - **Gráficos:** SVG/HTML custom — BarChart, DonutChart, Histogram, Heatmap, Sparkline
 - **ChartSkeleton:** placeholder de carga para todos los contenedores de gráficos
+- **Responsive (móvil/tablet):** el `Sidebar` es un drawer en pantallas `< md` (barra
+  superior con hamburguesa + overlay) y persistente en `md+`; `PageHead` apila título/acciones
+  y las tablas usan `overflow-x-auto`. Hooks `useIsMobile`/`useIsTablet` en `hooks/useMediaQuery.js`.
 
 ---
 
@@ -215,20 +218,35 @@ BOM, UTF-8 o Latin-1; y `.xlsx` vía openpyxl). Máx 10 MB / 2 000 filas.
   organización (DNI repetido → se omite; DNI inválido → fila reportada y omitida).
 - **Exportar** (`GET /students/export/?course_id=`): CSV `DNI,Nombres,Apellidos` (BOM para
   Excel, guard anti-inyección de fórmulas). Respeta el filtro de curso.
-- **CRUD**: editar y eliminar alumno desde la lista (eliminar es seguro aun con intentos —
-  `Attempt.student` es `SET_NULL`).
+- **CRUD**: **alta individual** ("Agregar alumno"), editar y eliminar desde la lista
+  (eliminar es seguro aun con intentos — `Attempt.student` es `SET_NULL`).
 
 ### Preguntas / exámenes
 
-- **Importar** (`POST /exams/import/`, crea examen + preguntas): plantilla de **8 columnas**
-  `Pregunta, Opción A–D, Respuesta Correcta, Explicación, Tema`. El **tipo se detecta solo**:
-  - opciones llenas + 1 respuesta correcta (`B`) → **opción única**
-  - opciones llenas + varias correctas (`A,C`) → **opción múltiple**
-  - opciones vacías + `Verdadero`/`Falso` → **Verdadero/Falso**
+- **Importar** (`POST /exams/import/`): plantilla de **9 columnas**
+  `Pregunta, Opción A–E, Respuesta Correcta, Explicación, Tema` (Opción E opcional). Puede
+  **crear un examen nuevo** (campo `title`) o **agregar a un examen existente** (`exam_id`)
+  con **deduplicación por enunciado** (las repetidas no se enlazan y se reportan).
+  El **tipo se detecta automáticamente** (insensible a acentos, con sinónimos en español):
+  - opciones llenas + 1 respuesta correcta (`A`) → **opción única** → radio
+  - opciones llenas + varias correctas (`A, C y D`) → **opción múltiple** → checkbox
+  - sin opciones, o con opciones = Verdadero/Falso, + `Verdadero`/`Falso`/`Sí`/`No` → **Verdadero/Falso**
   - sin opciones + texto → **respuesta corta**
 
-  Una columna `Tipo` opcional (acepta español: "Verdadero/Falso", "Opción múltiple"…) la
-  sobreescribe. Flujo con vista previa editable + confirmación.
+  Una columna `Tipo` opcional la sobreescribe ("Verdadero/Falso", "Opción múltiple",
+  "Selección simple"…). Flujo: subir → **vista previa con panel de validación** (✅/❌,
+  conteos y lista de errores por fila) → crear/agregar. Las filas inválidas se **omiten**
+  (importación tolerante) y se pueden **exportar a CSV** ("Exportar errores", con columna
+  `Error`) para corregirlas y reimportar. La calificación de las múltiples es **conjunto
+  exacto** (todo-o-nada, sin crédito parcial).
+- **Eliminar:** un examen con intentos/snapshots se borra de forma forzada (elimina también
+  sus intentos); una pregunta **en uso** por un examen se **desactiva** (sale del banco, el
+  examen queda intacto) y si **no** está en uso se borra físicamente.
+
+> **Herramienta auxiliar:** `banco-preguntas.html` (raíz del repo) — archivo único
+> autocontenido (vanilla JS, sin dependencias ni APIs) para importar/validar/visualizar un
+> CSV de 9 columnas, con modo examen de práctica y exportación de errores. Se abre directo
+> en el navegador.
 
 ---
 
