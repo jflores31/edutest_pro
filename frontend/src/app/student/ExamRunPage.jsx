@@ -42,6 +42,20 @@ function normalizeSnapshot(raw) {
   };
 }
 
+// Las respuestas guardadas vuelven envueltas ({selected_keys:[...]} múltiple,
+// {selected_key:"A"} única, {value:bool} V/F); los renderers esperan el valor
+// "desnudo" (array para múltiple, escalar para única/V-F/texto). Sin esto, al
+// reanudar/recargar el examen las respuestas no aparecían marcadas.
+function unwrapSavedAnswer(ad) {
+  if (ad && typeof ad === 'object' && !Array.isArray(ad)) {
+    if (Array.isArray(ad.selected_keys)) return ad.selected_keys;
+    if ('selected_key' in ad) return ad.selected_key;
+    if ('value' in ad) return ad.value;
+    if ('selected' in ad) return ad.selected;
+  }
+  return ad;
+}
+
 // ─── OfflineOverlay ──────────────────────────────────────────────────────────
 
 function OfflineOverlay({ onRetry }) {
@@ -144,10 +158,10 @@ export default function ExamRunPage() {
 
         const init = {};
         if (data.saved_answers && typeof data.saved_answers === 'object' && !Array.isArray(data.saved_answers)) {
-          Object.entries(data.saved_answers).forEach(([qId, val]) => { init[qId] = val; });
+          Object.entries(data.saved_answers).forEach(([qId, val]) => { init[qId] = unwrapSavedAnswer(val); });
         } else {
           (data.saved_answers || data.answers || []).forEach(a => {
-            init[a.question_id] = a.answer_data ?? a.value;
+            init[a.question_id] = unwrapSavedAnswer(a.answer_data ?? a.value);
           });
         }
         setAnswers(init);
