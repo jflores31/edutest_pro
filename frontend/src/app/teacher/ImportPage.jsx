@@ -454,10 +454,22 @@ function ImportExamsTab() {
     const validCount = Math.max(0, total - rowsWithErrors);
     const errorCount = rowsWithErrors;
 
-    const TYPE_LABEL = {
-      MULTIPLE_CHOICE: 'Opción múltiple',
-      BOOLEAN: 'V/F',
-      SHORT_ANSWER: 'Resp. corta',
+    // El modelo solo tiene MULTIPLE_CHOICE/BOOLEAN/SHORT_ANSWER: única vs múltiple
+    // se distingue por el nº de respuestas correctas (1 letra = única → radio;
+    // varias = múltiple → checkbox). La etiqueta del preview lo refleja.
+    const correctKeyCount = (raw) => {
+      const conn = new Set(['y', 'o', 'u', 'and', 'or', '&', '+']); // 'e' NO (choca con E)
+      const keys = new Set();
+      String(raw || '').split(/[,;/]|\s+/).map(t => t.trim()).filter(Boolean)
+        .forEach(t => { if (!conn.has(t.toLowerCase()) && /^[a-eA-E]$/.test(t)) keys.add(t.toUpperCase()); });
+      return keys.size;
+    };
+    const typeLabel = (r) => {
+      if (r.question_type === 'BOOLEAN') return 'Verdadero/Falso';
+      if (r.question_type === 'SHORT_ANSWER') return 'Respuesta corta';
+      if (r.question_type === 'MULTIPLE_CHOICE')
+        return correctKeyCount(r.correct_answer) > 1 ? 'Opción múltiple' : 'Opción única';
+      return r.question_type || '—';
     };
 
     // Exporta SOLO las filas con error + una columna "Error" (formato de 9 columnas).
@@ -553,7 +565,7 @@ function ImportExamsTab() {
                   <tr>
                     <th className="text-left px-3 py-2 text-fg-3 font-semibold w-8">#</th>
                     <th className="text-left px-3 py-2 text-fg-3 font-semibold">Pregunta</th>
-                    <th className="text-left px-3 py-2 text-fg-3 font-semibold w-16">Tipo</th>
+                    <th className="text-left px-3 py-2 text-fg-3 font-semibold w-32 whitespace-nowrap">Tipo</th>
                     <th className="text-left px-3 py-2 text-fg-3 font-semibold w-20">Tema</th>
                     <th className="text-left px-3 py-2 text-fg-3 font-semibold w-16">Estado</th>
                   </tr>
@@ -570,7 +582,7 @@ function ImportExamsTab() {
                           {r.text || '—'}
                         </td>
                         <td className="px-3 py-2">
-                          <span className="text-fg-3">{TYPE_LABEL[r.question_type] || r.question_type || '—'}</span>
+                          <span className="text-fg-3 whitespace-nowrap">{typeLabel(r)}</span>
                         </td>
                         <td className="px-3 py-2 text-fg-2 max-w-[120px] truncate">
                           {r.category || '—'}
