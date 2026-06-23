@@ -4,6 +4,39 @@ Todos los cambios notables de este proyecto se documentan aquí.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/)
 y el proyecto adopta [SemVer](https://semver.org/lang/es/).
 
+## [0.4.0](https://github.com/jflores31/edutest_pro/compare/v0.3.0...v0.4.0) (2026-06-23)
+
+
+### Features
+
+* **admin:** add purge_demo management command ([e7c670e](https://github.com/jflores31/edutest_pro/commit/e7c670eaad0758bd356c2ea3eb20140f4f8d39bb))
+* **exams:** allow force-delete of exams that have attempts ([4a2f2f8](https://github.com/jflores31/edutest_pro/commit/4a2f2f81e44e33617cd587fd7560a9fc09b12654))
+* **import:** append imported questions to an existing exam with dedup ([419ddbf](https://github.com/jflores31/edutest_pro/commit/419ddbf942b45d8a2361a96d382027164ed506ac))
+* **import:** exam import skips invalid rows instead of all-or-nothing ([d3c279c](https://github.com/jflores31/edutest_pro/commit/d3c279cb0fe354f7ab2f6da6c88d985cb887c892))
+* **import:** support up to 5 options (A–E) in question import ([9a306d2](https://github.com/jflores31/edutest_pro/commit/9a306d2343aa91dc8e0a93d32941d0cbe11111d5))
+* **import:** validation panel + export-errors in exam import preview ([a21fa77](https://github.com/jflores31/edutest_pro/commit/a21fa7756c3af59f7e241c09c89c387a1f312b01))
+* **layout:** collapsible sidebar + responsive fixes ([6ec65c1](https://github.com/jflores31/edutest_pro/commit/6ec65c17705f2f6d80e499321f3abd9300c5e28b))
+* **students:** add single-student create UI ([718b7e4](https://github.com/jflores31/edutest_pro/commit/718b7e404fe2a45eb72191e5de2ecea2941bc6a2))
+* **tool:** standalone HTML CSV question-bank importer/validator/exam ([1a86c04](https://github.com/jflores31/edutest_pro/commit/1a86c041c082f8161f42bf3c3e50c6167487c899))
+* **ux:** show "Verificando sesión…" spinner while auth loads ([458ef61](https://github.com/jflores31/edutest_pro/commit/458ef617d0551bc9976677c07260ac17c2191279))
+
+
+### Bug Fixes
+
+* **admin:** purge_demo also clears the dashboard cache ([6c62b4e](https://github.com/jflores31/edutest_pro/commit/6c62b4e889158eec4fb4914d1cf97ae573199c6e))
+* **dashboard:** remove duplicate Importar shortcut from Acceso rápido ([df6fd63](https://github.com/jflores31/edutest_pro/commit/df6fd638d9e49f9e16b3c8def4957618a72a7b93))
+* **exam-runner:** detect multi-answer questions via the sanitized 'multiple' hint ([6439acf](https://github.com/jflores31/edutest_pro/commit/6439acfcd97bd619fc82f2c459ca375bae548504))
+* **exams:** accept multi-answer correct keys when saving a question ([4852812](https://github.com/jflores31/edutest_pro/commit/48528122b213a5462f3d6927f75e4075638b0051))
+* **exams:** make delete work for exams with attempts/snapshots ([8a2a7b5](https://github.com/jflores31/edutest_pro/commit/8a2a7b55258511d3a792eba8c47a0b8098d65e0f))
+* **frontend:** follow paginated `next` URLs across the proxy ([a207fda](https://github.com/jflores31/edutest_pro/commit/a207fda4840c2403d8297415a08e7a4a99f8e7ae))
+* **import:** don't require exam title to preview; ask for it at create ([7bbd02b](https://github.com/jflores31/edutest_pro/commit/7bbd02b97f7b0f4497d2e2744fa31fc9f72f8f6f))
+* **import:** far more robust question-type detection ([66082bf](https://github.com/jflores31/edutest_pro/commit/66082bf38ab35f2920b178e16a233e0ab856bea5))
+* **import:** preview distinguishes Opción única vs múltiple ([c7d1d4a](https://github.com/jflores31/edutest_pro/commit/c7d1d4a68d1aff1ecd90afaa7b24f6c5cb76dee9))
+* **questions:** allow deleting bank questions that are used by exams ([7610439](https://github.com/jflores31/edutest_pro/commit/7610439803e8eddbef8e64bbc496500780a10d74))
+* **security:** correct indentation in cookie Secure hardening ([fe0f9fd](https://github.com/jflores31/edutest_pro/commit/fe0f9fd9d78fb6eca6a8772763e3560a1990dc41))
+* **security:** force Secure flag on auth cookies in production ([d64388b](https://github.com/jflores31/edutest_pro/commit/d64388b4916195912561be44d805167c56aa3dcc))
+* **ui:** repair garbled \uXXXX text and make layout responsive ([dfa4508](https://github.com/jflores31/edutest_pro/commit/dfa4508f696295db6404244f9f19bd6ad7d4b70f))
+
 ## [0.3.0](https://github.com/jflores31/edutest_pro/compare/v0.2.0...v0.3.0) (2026-06-22)
 
 
