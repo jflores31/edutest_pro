@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Outlet, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from './Sidebar';
-import { Skeleton, Icon } from '../design-system';
+import { Icon } from '../design-system';
 
 export default function AppShell() {
   const { user, isAuthenticated, loading } = useAuth();
@@ -19,9 +19,9 @@ export default function AppShell() {
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-bg">
-        <div className="space-y-4 text-center">
-          <Skeleton width="48px" height="48px" variant="circle" className="mx-auto" />
-          <Skeleton width="120px" height="14px" className="mx-auto" />
+        <div className="flex flex-col items-center gap-4 text-center" role="status" aria-live="polite">
+          <div className="h-10 w-10 rounded-full border-[3px] border-accent border-t-transparent animate-spin" />
+          <p className="text-sm text-fg-2">Verificando sesión…</p>
         </div>
       </div>
     );
