@@ -6,7 +6,8 @@ import { Skeleton, Icon } from '../design-system';
 
 export default function AppShell() {
   const { user, isAuthenticated, loading } = useAuth();
-  const [navOpen, setNavOpen] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);     // drawer móvil
+  const [collapsed, setCollapsed] = useState(false); // menú oculto en escritorio
 
   // Cierra el drawer con Escape (al navegar se cierra vía onClose en cada NavLink)
   useEffect(() => {
@@ -36,7 +37,12 @@ export default function AppShell() {
 
   return (
     <div className="flex h-screen bg-bg text-fg-1">
-      <Sidebar mobileOpen={navOpen} onClose={() => setNavOpen(false)} />
+      <Sidebar
+        mobileOpen={navOpen}
+        collapsed={collapsed}
+        onClose={() => setNavOpen(false)}
+        onCollapse={() => setCollapsed(true)}
+      />
 
       {/* Overlay (solo móvil, con drawer abierto) */}
       {navOpen && (
@@ -45,6 +51,18 @@ export default function AppShell() {
           onClick={() => setNavOpen(false)}
           aria-hidden="true"
         />
+      )}
+
+      {/* Botón flotante para volver a mostrar el menú en escritorio */}
+      {collapsed && (
+        <button
+          onClick={() => setCollapsed(false)}
+          aria-label="Mostrar menú"
+          title="Mostrar menú"
+          className="hidden md:flex fixed top-3 left-3 z-50 items-center justify-center rounded-xl border border-line bg-bg-1 p-2 text-fg-1 shadow-pop hover:bg-bg-2 transition-colors"
+        >
+          <Icon name="menu" size={18} />
+        </button>
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">

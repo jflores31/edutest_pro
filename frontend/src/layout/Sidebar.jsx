@@ -19,7 +19,7 @@ const NAV = [
   { to: '/teacher/settings', icon: 'settings', label: 'Configuración' },
 ];
 
-export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
+export default function Sidebar({ mobileOpen = false, collapsed = false, onClose = () => {}, onCollapse = () => {} }) {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
@@ -33,7 +33,7 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
     <aside
       className={`fixed inset-y-0 left-0 z-50 flex h-screen w-60 shrink-0 flex-col border-r border-line bg-bg-1 transition-transform duration-200 md:static md:z-auto md:translate-x-0 ${
         mobileOpen ? 'translate-x-0' : '-translate-x-full'
-      }`}
+      } ${collapsed ? 'md:hidden' : ''}`}
     >
       {/* Brand */}
       <div className="flex h-16 items-center gap-3 border-b border-line px-5">
@@ -41,13 +41,25 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
           E
         </div>
         <span className="text-base font-semibold text-fg-0">EduTest Pro</span>
-        <button
-          onClick={onClose}
-          aria-label="Cerrar menú"
-          className="ml-auto rounded-xl p-1.5 text-fg-3 hover:bg-bg-2 hover:text-fg-0 transition-colors md:hidden"
-        >
-          <Icon name="x" size={18} />
-        </button>
+        <div className="ml-auto flex items-center">
+          {/* Ocultar el menú (escritorio) */}
+          <button
+            onClick={onCollapse}
+            aria-label="Ocultar menú"
+            title="Ocultar menú"
+            className="hidden md:flex rounded-xl p-1.5 text-fg-3 hover:bg-bg-2 hover:text-fg-0 transition-colors"
+          >
+            <Icon name="chevron-left" size={18} />
+          </button>
+          {/* Cerrar el drawer (móvil) */}
+          <button
+            onClick={onClose}
+            aria-label="Cerrar menú"
+            className="md:hidden rounded-xl p-1.5 text-fg-3 hover:bg-bg-2 hover:text-fg-0 transition-colors"
+          >
+            <Icon name="x" size={18} />
+          </button>
+        </div>
       </div>
 
       {/* Nav */}

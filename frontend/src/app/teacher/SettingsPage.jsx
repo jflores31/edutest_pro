@@ -464,7 +464,7 @@ export default function SettingsPage() {
     <div>
       <PageHead breadcrumb={['Configuración']} title="Configuración" subtitle="Personaliza tu cuenta y los cursos que administras" />
       <div className="p-6 max-w-[1100px]">
-        <div className="grid grid-cols-[220px_1fr] gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-6">
           <Tabs tabs={TABS} activeKey={tab} onChange={setTab} orientation="vertical" />
           <div>
             {tab === 'cuenta' && <AccountTab />}

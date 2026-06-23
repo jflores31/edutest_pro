@@ -559,8 +559,8 @@ function ImportExamsTab() {
             />
 
             {/* Preview table */}
-            <div className="max-h-96 overflow-y-auto border border-line rounded-xl">
-              <table className="w-full text-xs">
+            <div className="max-h-96 overflow-auto border border-line rounded-xl">
+              <table className="w-full min-w-[560px] text-xs">
                 <thead className="bg-bg-2 sticky top-0">
                   <tr>
                     <th className="text-left px-3 py-2 text-fg-3 font-semibold w-8">#</th>
@@ -843,8 +843,8 @@ function ImportStudentsTab() {
           </div>
 
             {rows.length > 0 && (
-            <div className="max-h-48 overflow-y-auto border border-line rounded-xl mb-4">
-            <table className="w-full text-xs">
+            <div className="max-h-48 overflow-auto border border-line rounded-xl mb-4">
+            <table className="w-full min-w-[480px] text-xs">
               <thead className="bg-bg-2 sticky top-0">
                 <tr>
                   <th className="text-left px-3 py-2 text-fg-3 font-semibold">DNI</th>
