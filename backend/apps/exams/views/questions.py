@@ -116,10 +116,13 @@ class QuestionViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         from django.db.models.deletion import ProtectedError
+        instance = self.get_object()
         try:
-            return super().destroy(request, *args, **kwargs)
+            instance.delete()
         except ProtectedError:
-            return Response(
-                {"detail": "Esta pregunta está en uso por uno o más exámenes y no puede eliminarse."},
-                status=status.HTTP_409_CONFLICT,
-            )
+            # En uso por uno o más exámenes: no se puede borrar físicamente sin
+            # romper esos exámenes. Se desactiva → desaparece del banco y los
+            # exámenes (snapshot + ExamQuestion) quedan intactos.
+            instance.is_active = False
+            instance.save(update_fields=["is_active"])
+        return Response(status=status.HTTP_204_NO_CONTENT)
