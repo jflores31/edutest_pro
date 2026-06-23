@@ -80,8 +80,8 @@ class LoginView(TokenObtainPairView):
         if response.status_code == 200:
             data = response.data
             # Detrás del proxy de Render, request.is_secure() puede dar False; forzar
-        # Secure en producción (DEBUG=False) para que la cookie solo viaje por HTTPS.
-        is_secure = request.is_secure() or not settings.DEBUG
+            # Secure en producción (DEBUG=False) para que la cookie solo viaje por HTTPS.
+            is_secure = request.is_secure() or not settings.DEBUG
             samesite = "Lax"
             access_token = data.get("access", "")
             refresh_token = data.get("refresh", "")
