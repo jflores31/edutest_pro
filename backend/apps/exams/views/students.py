@@ -30,6 +30,7 @@ class CourseViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         from django.db import IntegrityError
+        from django.core.exceptions import ValidationError as DjangoValidationError
         from rest_framework.exceptions import ValidationError
         try:
             serializer.save(
@@ -38,6 +39,10 @@ class CourseViewSet(viewsets.ModelViewSet):
             )
         except IntegrityError:
             raise ValidationError({"code": ["A course with this code already exists in your organization."]})
+        except DjangoValidationError as exc:
+            # El modelo valida en save() (full_clean) → duplicado org+code lanza
+            # ValidationError de Django; convertir a 400 (no 500).
+            raise ValidationError(getattr(exc, "message_dict", None) or {"code": exc.messages})
 
 
 class StudentViewSet(viewsets.ModelViewSet):
@@ -74,19 +79,25 @@ class StudentViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         from django.db import IntegrityError
+        from django.core.exceptions import ValidationError as DjangoValidationError
         from rest_framework.exceptions import ValidationError
         try:
             serializer.save(organization=self.request.user.organization)
         except IntegrityError:
             raise ValidationError({"code": ["Ya existe un alumno con este DNI en tu organización."]})
+        except DjangoValidationError as exc:
+            raise ValidationError(getattr(exc, "message_dict", None) or {"code": exc.messages})
 
     def perform_update(self, serializer):
         from django.db import IntegrityError
+        from django.core.exceptions import ValidationError as DjangoValidationError
         from rest_framework.exceptions import ValidationError
         try:
             serializer.save()
         except IntegrityError:
             raise ValidationError({"code": ["Ya existe un alumno con este DNI en tu organización."]})
+        except DjangoValidationError as exc:
+            raise ValidationError(getattr(exc, "message_dict", None) or {"code": exc.messages})
 
     @action(detail=False, methods=["post"], url_path="bulk")
     def bulk(self, request):

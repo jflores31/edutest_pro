@@ -212,7 +212,7 @@ class StudentViewSetTest(TestCase):
 
     def test_create_student(self):
         resp = self.client.post(self.list_url, {
-            "code": "B-001",
+            "code": "10000001",
             "first_name": "Luis",
             "last_name": "Ramirez",
             "course": str(self.course.id),
@@ -242,8 +242,8 @@ class StudentViewSetTest(TestCase):
             {
                 "course_id": str(self.course.id),
                 "students": [
-                    {"code": "F-001", "first_name": "Uno", "last_name": "Uno"},
-                    {"code": "F-002", "first_name": "Dos", "last_name": "Dos"},
+                    {"code": "10000010", "first_name": "Uno", "last_name": "Uno"},
+                    {"code": "10000011", "first_name": "Dos", "last_name": "Dos"},
                 ],
             },
             format="json",
@@ -253,21 +253,21 @@ class StudentViewSetTest(TestCase):
         self.assertEqual(resp.data["skipped"], [])
 
     def test_bulk_skips_duplicates(self):
-        make_student(self.org, self.course, code="G-001")
+        make_student(self.org, self.course, code="20000001")
         resp = self.client.post(
             f"{self.list_url}bulk/",
             {
                 "course_id": str(self.course.id),
                 "students": [
-                    {"code": "G-001", "first_name": "X", "last_name": "Y"},
-                    {"code": "G-002", "first_name": "A", "last_name": "B"},
+                    {"code": "20000001", "first_name": "X", "last_name": "Y"},
+                    {"code": "20000002", "first_name": "A", "last_name": "B"},
                 ],
             },
             format="json",
         )
         self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
         self.assertEqual(resp.data["created"], 1)
-        self.assertIn("G-001", resp.data["skipped"])
+        self.assertIn("20000001", resp.data["skipped"])
 
     def test_profile(self):
         student = make_student(self.org, self.course)
