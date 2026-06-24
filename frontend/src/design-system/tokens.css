@@ -36,10 +36,10 @@ html[data-theme="light"] {
   /* Tonos de iconos (educación) — theme-aware, ~600 en light */
   --color-ic-indigo: #6366f1;  --color-ic-indigo-soft: rgba(99, 102, 241, 0.12);
   --color-ic-violet: #8b5cf6;  --color-ic-violet-soft: rgba(139, 92, 246, 0.12);
-  --color-ic-teal: #14b8a6;    --color-ic-teal-soft: rgba(20, 184, 166, 0.12);
-  --color-ic-amber: #f59e0b;   --color-ic-amber-soft: rgba(245, 158, 11, 0.14);
-  --color-ic-sky: #0ea5e9;     --color-ic-sky-soft: rgba(14, 165, 233, 0.12);
-  --color-ic-emerald: #10b981; --color-ic-emerald-soft: rgba(16, 185, 129, 0.12);
+  --color-ic-teal: #0d9488;    --color-ic-teal-soft: rgba(20, 184, 166, 0.12);
+  --color-ic-amber: #b45309;   --color-ic-amber-soft: rgba(245, 158, 11, 0.14);
+  --color-ic-sky: #0284c7;     --color-ic-sky-soft: rgba(14, 165, 233, 0.12);
+  --color-ic-emerald: #059669; --color-ic-emerald-soft: rgba(16, 185, 129, 0.12);
   --color-ic-rose: #f43f5e;    --color-ic-rose-soft: rgba(244, 63, 94, 0.12);
   --color-ic-slate: #64748b;   --color-ic-slate-soft: rgba(100, 116, 139, 0.12);
 
