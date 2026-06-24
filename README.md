@@ -196,11 +196,25 @@ Las preferencias de email se gestionan en `GET/PATCH /api/v1/auth/me/notificatio
 - **Autosave:** 600 ms debounce en ExamRunPage
 - **Heartbeat:** cada 25 s durante el examen
 - **mountedRef:** todos los componentes con fetch usan alive guard para evitar setState post-unmount
-- **Gráficos:** SVG/HTML custom — BarChart, DonutChart, Histogram, Heatmap, Sparkline
+- **Gráficos:** SVG/HTML custom — DonutChart, Histogram, Heatmap, Sparkline y **BarChart
+  horizontal** ("Promedio por examen": título legible + tooltip del nombre completo, color por
+  umbral, marca de umbral; evita el solapamiento de etiquetas rotadas). `buildBarData` ordena por
+  nota y limita a top 10.
 - **ChartSkeleton:** placeholder de carga para todos los contenedores de gráficos
-- **Responsive (móvil/tablet):** el `Sidebar` es un drawer en pantallas `< md` (barra
-  superior con hamburguesa + overlay) y persistente en `md+`; `PageHead` apila título/acciones
-  y las tablas usan `overflow-x-auto`. Hooks `useIsMobile`/`useIsTablet` en `hooks/useMediaQuery.js`.
+- **Diseño / iconos (sistema duotono, theme-aware):** acento de marca **índigo** + paleta
+  educativa de tonos `--color-ic-*` (indigo/violet/teal/amber/sky/emerald/rose/slate, con `-soft`,
+  en `tokens.css`). El componente `Icon` (wrapper de lucide-react) mapea cada icono a un tono
+  (`TONE`) y soporta `variant` `plain` | `soft` | `chip` + prop `tone`. `Badge` tiene variantes de
+  tono. Aplicado en: sidebar (nav por color), logo "E" (degradado índigo→violeta), KPIs y accesos
+  rápidos del dashboard, **encabezados** (`PageHead` deriva un chip de color del breadcrumb),
+  **tarjetas de examen** y **badges** (tipo/dificultad). Los iconos chicos de control quedan en
+  `plain` (legibilidad).
+- **Responsive + sidebar colapsable:** el `Sidebar` es drawer en `< md` (hamburguesa + overlay) y
+  persistente en `md+`, donde además se puede **ocultar/mostrar** (chevron para colapsar + botón
+  flotante para reabrir). `PageHead` apila título/acciones y las tablas usan `overflow-x-auto`.
+  Hooks `useIsMobile`/`useIsTablet` en `hooks/useMediaQuery.js`.
+- **Sesión:** `AppShell` muestra un spinner "Verificando sesión…" mientras valida `/auth/me/` y
+  redirige a `/login` si no hay sesión (el backend bloquea además todo dato sin auth → 401).
 
 ---
 
