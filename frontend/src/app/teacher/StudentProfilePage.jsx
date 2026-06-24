@@ -106,7 +106,7 @@ export default function StudentProfilePage() {
         <div className="p-6">
           <Card padding="lg">
             <div className="text-center py-12">
-              <Icon name="users" size={48} className="text-fg-3 mx-auto mb-4" />
+              <Icon name="users" size={48} variant="soft" className="mx-auto mb-4" />
               <h3 className="text-lg font-medium text-fg-0 mb-2">No se pudo cargar el perfil</h3>
               <p className="text-sm text-fg-2 mb-4">{error}</p>
               <Button onClick={() => navigate('/teacher/students')}>Volver a alumnos</Button>

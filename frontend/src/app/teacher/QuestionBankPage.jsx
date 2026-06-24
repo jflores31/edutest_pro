@@ -314,7 +314,7 @@ export default function QuestionBankPage() {
             </div>
           ) : filtered.length === 0 ? (
             <div className="text-center py-12">
-              <Icon name="search" size={48} className="text-fg-3 mx-auto mb-4" />
+              <Icon name="search" size={48} variant="soft" className="mx-auto mb-4" />
               <h3 className="text-lg font-medium text-fg-0 mb-2">
                 {questions.length === 0 ? 'Banco vacío' : 'Sin resultados'}
               </h3>

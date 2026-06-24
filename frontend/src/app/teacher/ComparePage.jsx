@@ -119,7 +119,7 @@ export default function ComparePage() {
         {selected.size < 2 ? (
           <Card padding="lg">
             <div className="text-center py-12">
-              <Icon name="trend" size={48} className="text-fg-3 mx-auto mb-4" />
+              <Icon name="trend" size={48} variant="soft" className="mx-auto mb-4" />
               <h3 className="text-lg font-medium text-fg-0 mb-2">Selecciona exámenes</h3>
               <p className="text-sm text-fg-2">Elige al menos 2 exámenes para comparar</p>
             </div>
@@ -133,7 +133,7 @@ export default function ComparePage() {
         ) : compareData.length === 0 ? (
           <Card padding="lg">
             <div className="text-center py-12">
-              <Icon name="trend" size={48} className="text-fg-3 mx-auto mb-4" />
+              <Icon name="trend" size={48} variant="soft" className="mx-auto mb-4" />
               <h3 className="text-lg font-medium text-fg-0 mb-2">Sin datos</h3>
               <p className="text-sm text-fg-2">Los exámenes seleccionados no tienen intentos completados</p>
             </div>

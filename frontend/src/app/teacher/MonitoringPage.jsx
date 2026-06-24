@@ -211,7 +211,7 @@ export default function MonitoringPage() {
             </div>
           ) : filtered.length === 0 ? (
             <div className="text-center py-12">
-              <Icon name="eye" size={48} className="text-fg-3 mx-auto mb-4" />
+              <Icon name="eye" size={48} variant="soft" className="mx-auto mb-4" />
               <h3 className="text-lg font-medium text-fg-0 mb-2">Sin alumnos activos</h3>
               <p className="text-sm text-fg-2">No hay exámenes en curso en este momento</p>
             </div>

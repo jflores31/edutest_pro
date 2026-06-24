@@ -475,7 +475,7 @@ export default function StudentsListPage() {
           )}
           {filtered.length === 0 && !loading && (
             <div className="text-center py-12">
-              <Icon name="users" size={48} className="text-fg-3 mx-auto mb-4" />
+              <Icon name="users" size={48} variant="soft" className="mx-auto mb-4" />
               <h3 className="text-lg font-medium text-fg-0 mb-2">Sin resultados</h3>
               <p className="text-sm text-fg-2">
                 {students.length === 0 ? 'No hay alumnos registrados aún' : 'Intenta con otros filtros'}

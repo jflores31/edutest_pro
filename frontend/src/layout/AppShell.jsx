@@ -76,7 +76,8 @@ export default function AppShell() {
             <Icon name="menu" size={20} />
           </button>
           <div className="flex items-center gap-2">
-            <div className="grid h-7 w-7 place-items-center rounded-lg bg-accent text-xs font-bold text-bg-1">
+            <div className="grid h-7 w-7 place-items-center rounded-lg text-xs font-bold text-white"
+              style={{ background: 'linear-gradient(135deg, var(--color-ic-indigo), var(--color-ic-violet))' }}>
               E
             </div>
             <span className="text-sm font-semibold text-fg-0">EduTest Pro</span>

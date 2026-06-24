@@ -254,7 +254,7 @@ export default function ExamsListPage() {
         ) : filteredExams.length === 0 ? (
           <Card padding="lg">
             <div className="text-center py-12">
-              <Icon name="book" size={48} className="text-fg-3 mx-auto mb-4" />
+              <Icon name="book" size={48} variant="soft" className="mx-auto mb-4" />
               <h3 className="text-lg font-medium text-fg-0 mb-2">
                 {search ? 'Sin resultados' : 'No hay exámenes'}
               </h3>

@@ -30,9 +30,7 @@ export function KPICard({ icon, label, value, suffix, foot, delta, invertDelta, 
   return (
     <Card padding="md" variant="elevated" className="relative overflow-hidden">
       <div className="flex items-center gap-2.5 text-fg-2 mb-3">
-        <div className="grid h-9 w-9 place-items-center rounded-xl bg-accent-soft">
-          <Icon name={icon} size={16} strokeWidth={1.8} className="text-accent" />
-        </div>
+        <Icon name={icon} size={18} strokeWidth={1.9} variant="chip" />
         <span className="text-xs font-medium">{label}</span>
       </div>
       <div className="flex items-baseline gap-2 mb-1 flex-wrap">

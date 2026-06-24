@@ -9,14 +9,14 @@ import { Icon } from '../design-system';
 import NotificationBell from '../features/notifications/NotificationBell';
 
 const NAV = [
-  { to: '/teacher/dashboard', icon: 'chart', label: 'Dashboard' },
-  { to: '/teacher/exams', icon: 'book', label: 'Exámenes' },
-  { to: '/teacher/bank', icon: 'template', label: 'Banco' },
-  { to: '/teacher/students', icon: 'users', label: 'Alumnos' },
-  { to: '/teacher/import', icon: 'upload', label: 'Importar' },
-  { to: '/teacher/monitoring', icon: 'eye', label: 'Monitoreo' },
-  { to: '/teacher/compare', icon: 'trend', label: 'Comparativa' },
-  { to: '/teacher/settings', icon: 'settings', label: 'Configuración' },
+  { to: '/teacher/dashboard', icon: 'chart', label: 'Dashboard', tone: 'violet' },
+  { to: '/teacher/exams', icon: 'book', label: 'Exámenes', tone: 'indigo' },
+  { to: '/teacher/bank', icon: 'template', label: 'Banco', tone: 'amber' },
+  { to: '/teacher/students', icon: 'users', label: 'Alumnos', tone: 'teal' },
+  { to: '/teacher/import', icon: 'upload', label: 'Importar', tone: 'sky' },
+  { to: '/teacher/monitoring', icon: 'eye', label: 'Monitoreo', tone: 'rose' },
+  { to: '/teacher/compare', icon: 'trend', label: 'Comparativa', tone: 'emerald' },
+  { to: '/teacher/settings', icon: 'settings', label: 'Configuración', tone: 'slate' },
 ];
 
 export default function Sidebar({ mobileOpen = false, collapsed = false, onClose = () => {}, onCollapse = () => {} }) {
@@ -37,7 +37,8 @@ export default function Sidebar({ mobileOpen = false, collapsed = false, onClose
     >
       {/* Brand */}
       <div className="flex h-16 items-center gap-3 border-b border-line px-5">
-        <div className="grid h-8 w-8 place-items-center rounded-xl bg-accent text-sm font-bold text-bg-1">
+        <div className="grid h-8 w-8 place-items-center rounded-xl text-sm font-bold text-white shadow-sm"
+          style={{ background: 'linear-gradient(135deg, var(--color-ic-indigo), var(--color-ic-violet))' }}>
           E
         </div>
         <span className="text-base font-semibold text-fg-0">EduTest Pro</span>
@@ -77,7 +78,7 @@ export default function Sidebar({ mobileOpen = false, collapsed = false, onClose
               }`
             }
           >
-            <Icon name={item.icon} size={16} strokeWidth={1.8} />
+            <Icon name={item.icon} size={16} strokeWidth={1.9} variant="soft" tone={item.tone} />
             <span>{item.label}</span>
           </NavLink>
         ))}

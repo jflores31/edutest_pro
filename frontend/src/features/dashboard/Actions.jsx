@@ -7,9 +7,7 @@ export function EmptyBanner() {
   return (
     <div className="flex items-center justify-between gap-4 bg-accent-soft border border-accent/15 rounded-xl px-5 py-4">
       <div className="flex items-center gap-3 min-w-0">
-        <div className="grid h-9 w-9 place-items-center rounded-xl bg-accent/10 shrink-0">
-          <Icon name="chart" size={18} className="text-accent" strokeWidth={1.8} />
-        </div>
+        <Icon name="chart" size={18} variant="chip" strokeWidth={1.9} className="shrink-0" />
         <div className="min-w-0">
           <p className="text-sm font-medium text-fg-0">Aún no hay intentos completados</p>
           <p className="text-xs text-fg-2 truncate">Comparte el link del examen con tus alumnos para ver estadísticas.</p>
@@ -49,7 +47,7 @@ export function QuickActions({ stats, liveData }) {
             className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-bg-2/60 transition-colors text-sm
               ${a.urgent ? 'text-warn hover:bg-warn-soft' : 'text-fg-1 hover:bg-accent-soft hover:text-accent'}`}
           >
-            <Icon name={a.icon} size={14} strokeWidth={1.8} />
+            <Icon name={a.icon} size={15} strokeWidth={1.9} variant={a.urgent ? 'plain' : 'soft'} />
             {a.label}
           </Link>
         ))}
