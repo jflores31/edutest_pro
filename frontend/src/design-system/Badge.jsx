@@ -20,6 +20,14 @@ export default function Badge({
     neutral: 'bg-bg-2 text-fg-2 border-line',
     accent:  'bg-accent-soft text-accent border-accent/20',
     info:    'bg-blue-500/10 text-blue-500 border-blue-500/20',
+    // Tonos educativos
+    indigo:  'bg-ic-indigo-soft text-ic-indigo border-ic-indigo/25',
+    violet:  'bg-ic-violet-soft text-ic-violet border-ic-violet/25',
+    teal:    'bg-ic-teal-soft text-ic-teal border-ic-teal/25',
+    amber:   'bg-ic-amber-soft text-ic-amber border-ic-amber/25',
+    sky:     'bg-ic-sky-soft text-ic-sky border-ic-sky/25',
+    emerald: 'bg-ic-emerald-soft text-ic-emerald border-ic-emerald/25',
+    rose:    'bg-ic-rose-soft text-ic-rose border-ic-rose/25',
   };
 
   const dotColors = {
@@ -31,6 +39,13 @@ export default function Badge({
     neutral: 'bg-fg-3',
     accent:  'bg-accent',
     info:    'bg-blue-500',
+    indigo:  'bg-ic-indigo',
+    violet:  'bg-ic-violet',
+    teal:    'bg-ic-teal',
+    amber:   'bg-ic-amber',
+    sky:     'bg-ic-sky',
+    emerald: 'bg-ic-emerald',
+    rose:    'bg-ic-rose',
   };
 
   return (

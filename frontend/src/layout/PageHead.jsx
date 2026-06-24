@@ -8,12 +8,33 @@
 import { Link } from 'react-router-dom';
 import { Icon } from '../design-system';
 
+// Icono + tono por sección (derivado del breadcrumb) para colorear el encabezado.
+const SECTION = {
+  'dashboard': { icon: 'chart', tone: 'violet' },
+  'exámenes': { icon: 'book', tone: 'indigo' },
+  'examenes': { icon: 'book', tone: 'indigo' },
+  'banco de preguntas': { icon: 'template', tone: 'amber' },
+  'banco': { icon: 'template', tone: 'amber' },
+  'alumnos': { icon: 'users', tone: 'teal' },
+  'importar': { icon: 'upload', tone: 'sky' },
+  'monitoreo': { icon: 'eye', tone: 'rose' },
+  'comparativa': { icon: 'trend', tone: 'emerald' },
+  'configuración': { icon: 'settings', tone: 'slate' },
+  'configuracion': { icon: 'settings', tone: 'slate' },
+  'intentos': { icon: 'file', tone: 'indigo' },
+};
+
 export default function PageHead({
   breadcrumb = [],
   title,
   subtitle,
   actions,
+  icon,       // opcional: fuerza el icono del encabezado
+  iconTone,   // opcional: fuerza el tono
 }) {
+  const sec = icon
+    ? { icon, tone: iconTone }
+    : SECTION[(breadcrumb[0] || '').toLowerCase()];
   return (
     <header className="border-b border-line bg-bg px-4 py-5 sm:px-8 sm:py-6">
       {breadcrumb.length > 0 && (
@@ -33,13 +54,18 @@ export default function PageHead({
       )}
 
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between md:gap-6">
-        <div className="min-w-0">
-          <h1 className="truncate text-xl sm:text-2xl font-bold tracking-tight text-fg-0">
-            {title}
-          </h1>
-          {subtitle && (
-            <p className="mt-1 text-sm text-fg-3 leading-relaxed">{subtitle}</p>
+        <div className="flex items-center gap-3 min-w-0">
+          {sec?.icon && (
+            <Icon name={sec.icon} tone={sec.tone} variant="chip" size={22} strokeWidth={1.9} className="shrink-0 self-start" />
           )}
+          <div className="min-w-0">
+            <h1 className="truncate text-xl sm:text-2xl font-bold tracking-tight text-fg-0">
+              {title}
+            </h1>
+            {subtitle && (
+              <p className="mt-1 text-sm text-fg-3 leading-relaxed">{subtitle}</p>
+            )}
+          </div>
         </div>
 
         {actions && (

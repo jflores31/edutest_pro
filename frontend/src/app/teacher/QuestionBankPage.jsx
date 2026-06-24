@@ -11,19 +11,19 @@ import { useDebounce } from '../../hooks';
 import { questions as questionsApi } from '../../services/api';
 
 const TYPE_LABELS = {
-  MULTIPLE_CHOICE: { label: 'Opción múltiple', variant: 'accent' },
-  BOOLEAN: { label: 'V/F', variant: 'neutral' },
-  SHORT_ANSWER: { label: 'Respuesta corta', variant: 'warning' },
-  single_choice: { label: 'Opción múltiple', variant: 'accent' },
-  multiple_choice: { label: 'Selección múltiple', variant: 'accent' },
-  boolean: { label: 'V/F', variant: 'neutral' },
-  short_answer: { label: 'Respuesta corta', variant: 'warning' },
+  MULTIPLE_CHOICE: { label: 'Opción múltiple', variant: 'violet' },
+  BOOLEAN: { label: 'V/F', variant: 'amber' },
+  SHORT_ANSWER: { label: 'Respuesta corta', variant: 'teal' },
+  single_choice: { label: 'Opción única', variant: 'indigo' },
+  multiple_choice: { label: 'Opción múltiple', variant: 'violet' },
+  boolean: { label: 'V/F', variant: 'amber' },
+  short_answer: { label: 'Respuesta corta', variant: 'teal' },
 };
 
 const DIFFICULTY_LABELS = {
-  easy: { label: 'Fácil', variant: 'success' },
-  medium: { label: 'Media', variant: 'warning' },
-  hard: { label: 'Difícil', variant: 'danger' },
+  easy: { label: 'Fácil', variant: 'emerald' },
+  medium: { label: 'Media', variant: 'amber' },
+  hard: { label: 'Difícil', variant: 'rose' },
 };
 
 function normalize(q) {

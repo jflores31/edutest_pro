@@ -72,15 +72,15 @@ export default function ExamCard({ exam, onCopyLink, onEdit, onDelete, onArchive
           <h3 className="text-base font-semibold text-fg-0 truncate">{exam.title}</h3>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-fg-2">
             <span className="flex items-center gap-1.5">
-              <Icon name="book" size={13} className="text-fg-3" />
+              <Icon name="book" size={13} variant="soft" />
               {exam.questions} preguntas
             </span>
             <span className="flex items-center gap-1.5">
-              <Icon name="clock" size={13} className="text-fg-3" />
+              <Icon name="clock" size={13} variant="soft" tone="sky" />
               {exam.duration || 'Sin límite'}
             </span>
             <span className="flex items-center gap-1.5">
-              <Icon name="users" size={13} className="text-fg-3" />
+              <Icon name="users" size={13} variant="soft" />
               {exam.maxAttempts ? `${exam.attempts}/${exam.maxAttempts} intentos` : `${exam.attempts} intentos`}
             </span>
           </div>
