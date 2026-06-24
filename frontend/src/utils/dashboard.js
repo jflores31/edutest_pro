@@ -46,10 +46,13 @@ export function buildHistogram(raw = []) {
 }
 
 export function buildBarData(raw = []) {
-  return raw.map(e => ({
-    label: e.exam_title,
-    value: e.avg_score != null ? Math.round(e.avg_score * 10) / 10 : 0,
-  }));
+  return raw
+    .map(e => ({
+      label: e.exam_title,
+      value: e.avg_score != null ? Math.round(e.avg_score * 10) / 10 : 0,
+    }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 10);
 }
 
 export function buildDonut(total, passRate, abandonmentRate) {

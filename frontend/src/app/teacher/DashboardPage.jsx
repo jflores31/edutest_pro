@@ -303,11 +303,11 @@ export default function DashboardPage() {
                         onKeyDown={e => e.key === 'Enter' && navigate(`/teacher/attempts/${a.id}`)}
                       >
                         <td className="px-5 py-3.5">
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
                             <Avatar name={a.user_name} size="sm" color={AVATAR_COLORS[i % 5]} />
-                            <div>
-                              <div className="text-sm font-medium text-fg-0">{a.user_name}</div>
-                              <div className="text-2xs text-fg-3">{a.user_email}</div>
+                            <div className="min-w-0">
+                              <div className="text-sm font-medium text-fg-0 truncate">{a.user_name}</div>
+                              <div className="text-2xs text-fg-3 truncate">{a.user_email}</div>
                             </div>
                           </div>
                         </td>

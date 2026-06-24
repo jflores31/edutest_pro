@@ -16,9 +16,9 @@ export default function Histogram({ buckets = [] }) {
     : buckets;
 
   return (
-    <div className="flex items-end gap-3 h-[130px] pt-1 relative">
+    <div className="flex items-end gap-2 sm:gap-3 h-[130px] pt-1 relative">
       {displayBuckets.map(b => (
-        <div key={b.range} className="flex-1 flex flex-col items-center gap-1.5" style={{ minWidth: 36, maxWidth: 72 }}>
+        <div key={b.range} className="flex-1 flex flex-col items-center gap-1.5" style={{ minWidth: 40, maxWidth: 72 }}>
           <div
             className="w-full rounded-t transition-all duration-300"
             style={{
@@ -29,7 +29,7 @@ export default function Histogram({ buckets = [] }) {
             }}
           />
           <div className="text-xs text-fg-1 font-semibold tabular-nums">{b.count || 0}</div>
-          <div className="text-2xs text-fg-2">{b.range}</div>
+          <div className="text-2xs text-fg-2 whitespace-nowrap">{b.range}</div>
         </div>
       ))}
       {allEmpty && (
