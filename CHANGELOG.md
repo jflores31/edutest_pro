@@ -4,6 +4,15 @@ Todos los cambios notables de este proyecto se documentan aquí.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/)
 y el proyecto adopta [SemVer](https://semver.org/lang/es/).
 
+## [0.4.1](https://github.com/jflores31/edutest_pro/compare/v0.4.0...v0.4.1) (2026-06-24)
+
+
+### Bug Fixes
+
+* **exam-editor:** load/edit/save multi-answer (and single) correctly ([a98c5d4](https://github.com/jflores31/edutest_pro/commit/a98c5d4007f9c3f17bab523e78c74c159e98c2c4))
+* **exam-runner:** make multi-select look like a checkbox, not a radio ([f61e813](https://github.com/jflores31/edutest_pro/commit/f61e813c77fc506c1a992895c8afbe87dd4c5f01))
+* **exam-runner:** show saved multi/single answers on resume ([4188f3f](https://github.com/jflores31/edutest_pro/commit/4188f3fb6faf8cccac1c0766b8b3f1d3cf6e9772))
+
 ## [0.4.0](https://github.com/jflores31/edutest_pro/compare/v0.3.0...v0.4.0) (2026-06-23)
 
 
