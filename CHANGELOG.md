@@ -4,6 +4,20 @@ Todos los cambios notables de este proyecto se documentan aquí.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/)
 y el proyecto adopta [SemVer](https://semver.org/lang/es/).
 
+## [0.5.0](https://github.com/jflores31/edutest_pro/compare/v0.4.1...v0.5.0) (2026-06-24)
+
+
+### Features
+
+* **ui:** colorful duotone icon system + indigo brand accent ([242532c](https://github.com/jflores31/edutest_pro/commit/242532cd0bbe066ee4986d973ca7990cc3dd60e4))
+* **ui:** colorful exam cards, badges and page headers ([fc7a7c9](https://github.com/jflores31/edutest_pro/commit/fc7a7c929aea9425da87c6b33b88206f906b6cf9))
+
+
+### Bug Fixes
+
+* **api:** return 400 (not 500) on duplicate course/student; fix CI tests ([fd9f8d6](https://github.com/jflores31/edutest_pro/commit/fd9f8d6cbcea965c7434735e3429b5e445e8820d))
+* **dashboard:** horizontal bar chart fixes overlapping labels + minor text fixes ([50d3e3a](https://github.com/jflores31/edutest_pro/commit/50d3e3aee1d201be5a51c9af19d58b50a73b01ae))
+
 ## [0.4.1](https://github.com/jflores31/edutest_pro/compare/v0.4.0...v0.4.1) (2026-06-24)
 
 
