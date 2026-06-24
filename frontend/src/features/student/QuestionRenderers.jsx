@@ -7,9 +7,9 @@ export function SingleChoice({ q, value, onChange }) {
           <label key={opt.id}
             className={`flex gap-3 p-4 rounded-xl border cursor-pointer transition-all
               ${sel ? 'border-accent bg-accent/10' : 'border-line hover:border-fg-3 hover:bg-bg-2'}`}>
-            <span className={`mt-0.5 w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all
+            <span className={`mt-0.5 w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all
               ${sel ? 'border-accent' : 'border-fg-3'}`}>
-              {sel && <span className="w-2 h-2 rounded-full bg-accent" />}
+              {sel && <span className="w-2.5 h-2.5 rounded-full bg-accent" />}
             </span>
             <input type="radio" name={q.id} checked={sel} onChange={() => onChange(opt.id)} className="sr-only" />
             <span className="text-fg-1 text-sm leading-relaxed">{opt.text}</span>
@@ -35,10 +35,10 @@ export function MultipleChoice({ q, value, onChange }) {
           <label key={opt.id}
             className={`flex gap-3 p-4 rounded-xl border cursor-pointer transition-all
               ${chk ? 'border-accent bg-accent/10' : 'border-line hover:border-fg-3 hover:bg-bg-2'}`}>
-            <span className={`mt-0.5 w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center transition-all
+            <span className={`mt-0.5 w-5 h-5 rounded-sm border-2 flex-shrink-0 flex items-center justify-center transition-all
               ${chk ? 'border-accent bg-accent' : 'border-fg-3'}`}>
               {chk && (
-                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
               )}
