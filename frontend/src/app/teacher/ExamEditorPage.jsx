@@ -16,8 +16,8 @@ let _uidCounter = 0;
 const uid = (prefix) => `${prefix}-${++_uidCounter}`;
 
 const QUESTION_TYPES = [
-  { key: 'single_choice', label: 'Opción múltiple', icon: 'check' },
-  { key: 'multiple_choice', label: 'Selección múltiple', icon: 'check' },
+  { key: 'single_choice', label: 'Opción única', icon: 'check' },
+  { key: 'multiple_choice', label: 'Opción múltiple', icon: 'check' },
   { key: 'boolean', label: 'Verdadero/Falso', icon: 'check' },
   { key: 'short_answer', label: 'Respuesta corta', icon: 'edit' },
 ];
@@ -42,9 +42,18 @@ function mapQuestionToApi(q) {
     metadata.correct_answer = q.correct ?? false;
   } else if (q.type === 'short_answer') {
     metadata.correct_answer = q.correctAnswer ?? '';
+  } else if (q.type === 'multiple_choice') {
+    // varias respuestas correctas → correct_keys (array)
+    const keys = (q.correctKeys && q.correctKeys.length)
+      ? q.correctKeys
+      : (q.correctKey ? [q.correctKey] : [options[0]?.key || 'A']);
+    metadata.correct_keys = keys;
+    metadata.correct_key = keys.join(',');
   } else {
-    // single_choice or multiple_choice — correct option is the letter A/B/C/D
-    metadata.correct_key = q.correctKey ?? (options[0]?.key || 'A');
+    // single_choice — una sola respuesta correcta
+    const key = q.correctKey ?? (options[0]?.key || 'A');
+    metadata.correct_key = key;
+    metadata.correct_keys = [key];
   }
 
   if (q.explanation) metadata.explanation = q.explanation;
@@ -63,7 +72,16 @@ function mapQuestionToApi(q) {
 function normalizeLoadedQuestion(q, eq) {
   const meta = q.question?.metadata || {};
   const qType = q.question?.question_type || 'MULTIPLE_CHOICE';
-  const frontendType = qType === 'BOOLEAN' ? 'boolean' : qType === 'SHORT_ANSWER' ? 'short_answer' : 'single_choice';
+  // Respuestas correctas: correct_keys (array) o correct_key ("A" o "A,C").
+  const correctKeys = (Array.isArray(meta.correct_keys) && meta.correct_keys.length)
+    ? meta.correct_keys.map(k => String(k).toUpperCase())
+    : (meta.correct_key
+        ? String(meta.correct_key).split(/[^A-Ea-e]+/).filter(Boolean).map(k => k.toUpperCase())
+        : []);
+  // Única vs múltiple = nº de respuestas correctas (el backend usa MULTIPLE_CHOICE para ambas).
+  const frontendType = qType === 'BOOLEAN' ? 'boolean'
+    : qType === 'SHORT_ANSWER' ? 'short_answer'
+    : (correctKeys.length > 1 ? 'multiple_choice' : 'single_choice');
   const opts = (meta.options || []).map((o, i) => ({ id: `opt-${q.id}-${i}`, text: o.text || '' }));
   return {
     id: q.id,
@@ -72,7 +90,8 @@ function normalizeLoadedQuestion(q, eq) {
     text: q.question?.question_text || '',
     options: opts.length ? opts : undefined,
     correct: meta.correct_answer ?? null,
-    correctKey: meta.correct_key ?? null,
+    correctKey: correctKeys[0] ?? null,
+    correctKeys,
     explanation: meta.explanation ?? '',
     topic: meta.topic ?? '',
     points: eq?.points ?? q.points ?? 1,
@@ -145,27 +164,43 @@ function QuestionEditor({ question, index, onUpdate, onDelete }) {
             <div>
               <label className="block text-xs text-fg-1 font-medium mb-2">Opciones</label>
               <div className="space-y-2">
-                {(question.options || []).map((opt, i) => (
-                  <div key={opt.id} className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name={`correct-${question.id}`}
-                      checked={question.correctKey === String.fromCharCode(65 + i)}
-                      onChange={() => updateField('correctKey', String.fromCharCode(65 + i))}
-                      title="Marcar como correcta"
-                    />
-                    <span className="text-xs text-fg-3 w-6">{String.fromCharCode(65 + i)}.</span>
-                    <Input
-                      value={opt.text}
-                      onChange={e => updateOption(opt.id, e.target.value)}
-                      placeholder={`Opción ${String.fromCharCode(65 + i)}`}
-                      className="flex-1"
-                    />
-                    <Button variant="ghost" size="sm" onClick={() => removeOption(opt.id)}>
-                      <Icon name="x" size={14} className="text-fg-3" />
-                    </Button>
-                  </div>
-                ))}
+                {(question.options || []).map((opt, i) => {
+                  const letter = String.fromCharCode(65 + i);
+                  const isMulti = question.type === 'multiple_choice';
+                  const checked = isMulti
+                    ? (question.correctKeys || []).includes(letter)
+                    : question.correctKey === letter;
+                  const toggleCorrect = () => {
+                    if (isMulti) {
+                      const cur = question.correctKeys || [];
+                      const next = cur.includes(letter) ? cur.filter(k => k !== letter) : [...cur, letter].sort();
+                      onUpdate({ ...question, correctKeys: next, correctKey: next[0] || null });
+                    } else {
+                      onUpdate({ ...question, correctKey: letter, correctKeys: [letter] });
+                    }
+                  };
+                  return (
+                    <div key={opt.id} className="flex items-center gap-2">
+                      <input
+                        type={isMulti ? 'checkbox' : 'radio'}
+                        name={`correct-${question.id}`}
+                        checked={checked}
+                        onChange={toggleCorrect}
+                        title="Marcar como correcta"
+                      />
+                      <span className="text-xs text-fg-3 w-6">{letter}.</span>
+                      <Input
+                        value={opt.text}
+                        onChange={e => updateOption(opt.id, e.target.value)}
+                        placeholder={`Opción ${letter}`}
+                        className="flex-1"
+                      />
+                      <Button variant="ghost" size="sm" onClick={() => removeOption(opt.id)}>
+                        <Icon name="x" size={14} className="text-fg-3" />
+                      </Button>
+                    </div>
+                  );
+                })}
               </div>
               <Button variant="ghost" size="sm" className="mt-2" onClick={addOption} icon={<Icon name="plus" size={12} />}>
                 Agregar opción
