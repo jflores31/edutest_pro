@@ -43,6 +43,7 @@ data/
 graphify-out/
 .agents/
 .claude/
+skills-lock.json
 
 # CLI local state
 .vercel/
