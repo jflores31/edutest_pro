@@ -87,7 +87,7 @@ function normalizeLoadedQuestion(q, eq) {
     correctKey: correctKeys[0] ?? null,
     correctKeys,
     explanation: meta.explanation ?? '',
-    topic: meta.topic ?? '',
+    topic: meta.topic || meta.category || '',
     points: eq?.points ?? q.points ?? 1,
     difficulty: meta.difficulty ?? 'medium',
     order: q.order ?? 1,
@@ -245,6 +245,13 @@ function QuestionEditor({ question, index, onUpdate, onDelete }) {
               </select>
             </div>
           </div>
+
+          <Input
+            label="Tema (opcional)"
+            value={question.topic || ''}
+            onChange={e => updateField('topic', e.target.value)}
+            placeholder="Ej.: Redes, Álgebra, Historia..."
+          />
 
           <Input
             label="Explicación (opcional)"

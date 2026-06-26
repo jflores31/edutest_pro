@@ -22,7 +22,7 @@ function normalize(q) {
     id: q.id,
     text: q.text ?? q.question_text ?? '',
     type: resolveLogicalType(q.question_type ?? q.type, q.metadata),
-    topic: q.category ?? q.topic ?? q.metadata?.topic ?? q.metadata?.category ?? '—',
+    topic: q.category || q.topic || q.metadata?.topic || q.metadata?.category || '—',
     difficulty: q.difficulty ?? q.metadata?.difficulty ?? 'medium',
     usage_count: q.usage_count ?? 0,
     error_rate: q.error_rate != null ? Math.round(q.error_rate) : 0,

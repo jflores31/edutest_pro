@@ -446,9 +446,9 @@ export default function ExamRunPage() {
             <span className="text-2xs uppercase tracking-widest text-fg-3">
               Pregunta {idx + 1} de {total}
             </span>
-            {q.metadata?.category && (
+            {(q.metadata?.category || q.metadata?.topic) && (
               <span className="text-2xs bg-bg-2 border border-line text-fg-2 px-2 py-0.5 rounded-full">
-                {q.metadata.category}
+                {q.metadata.category || q.metadata.topic}
               </span>
             )}
           </div>

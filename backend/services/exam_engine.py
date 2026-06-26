@@ -211,7 +211,7 @@ class ExamEngine:
                 "question_id": q_id,
                 "question_text": q["question_text"],
                 "question_type": q["question_type"],
-                "topic": q["metadata"].get("topic", ""),
+                "topic": q["metadata"].get("topic") or q["metadata"].get("category") or "",
                 "explanation": q["metadata"].get("explanation", ""),
                 "metadata": q["metadata"],
                 "your_answer": self._format_student_answer(q, student_answer),
