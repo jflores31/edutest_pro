@@ -417,7 +417,7 @@ export default function ExamRunPage() {
                         ? 'border-ok/40 bg-ok/10 text-ok'
                         : 'border-line text-fg-2 hover:border-fg-3 hover:bg-bg-2'}`}>
                   {i + 1}
-                  {!done && i === questions.findIndex((x) => answers[x.id] === undefined) && i !== idx && (
+                  {active && (
                     <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-warn" />
                   )}
                 </button>
@@ -431,7 +431,9 @@ export default function ExamRunPage() {
               <span className="w-3 h-3 rounded border border-ok/40 bg-ok/10" />Respondida
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded border border-accent bg-accent/15" />Actual
+              <span className="relative w-3 h-3 rounded border border-accent bg-accent/15">
+                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-warn" />
+              </span>Actual
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-3 h-3 rounded border border-line" />Sin responder
