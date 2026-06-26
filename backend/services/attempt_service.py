@@ -29,8 +29,12 @@ def _sanitize_question_for_student(q):
     ]
     safe_meta = {"options": safe_options}
     # Preserve a multi-select hint (how many to choose, not which) without leaking keys.
+    # Deriva el conteo desde correct_keys (lista) y, como respaldo para datos legacy
+    # sin lista, desde correct_key ("A,C"). Nunca expone qué claves son correctas.
     correct_keys = meta.get("correct_keys")
-    if isinstance(correct_keys, list) and len(correct_keys) > 1:
+    if not isinstance(correct_keys, list):
+        correct_keys = [k for k in str(meta.get("correct_key", "")).upper().split(",") if k.strip()]
+    if len(correct_keys) > 1:
         safe_meta["multiple"] = True
     for k in _SAFE_META_DISPLAY_KEYS:
         if meta.get(k) is not None:

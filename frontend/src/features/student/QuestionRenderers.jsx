@@ -1,3 +1,5 @@
+import { isMultiAnswer } from '../../utils/questionType';
+
 export function SingleChoice({ q, value, onChange }) {
   return (
     <div className="space-y-2.5">
@@ -86,10 +88,8 @@ export function QuestionBody({ q, value, onChange }) {
     return <MultipleChoice q={q} value={value} onChange={onChange} />;
   if (q.type === 'MULTIPLE_CHOICE') {
     // El snapshot del alumno está saneado (sin correct_keys) y trae la pista
-    // `multiple`. Para el docente/preview, correct_keys sí está presente.
-    const isMulti = q.metadata?.multiple === true
-      || (Array.isArray(q.metadata?.correct_keys) && q.metadata.correct_keys.length > 1);
-    return isMulti
+    // `multiple`; para el docente/preview, correct_keys sí está presente.
+    return isMultiAnswer(q.metadata)
       ? <MultipleChoice q={q} value={value} onChange={onChange} />
       : <SingleChoice q={q} value={value} onChange={onChange} />;
   }

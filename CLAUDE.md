@@ -150,6 +150,8 @@ Organization (tenant root)
 
 **ExamSnapshot pattern:** When `ExamEngine.start_exam()` runs, the entire exam structure (questions, options, metadata) is serialized into an `ExamSnapshot` row. The student session reads exclusively from the snapshot, so editing questions after launch does not affect active attempts.
 
+**Question type — single vs multiple (single source of truth):** The model stores only `MULTIPLE_CHOICE | BOOLEAN | SHORT_ANSWER`. "Opción única" vs "opción múltiple" is **derived from the number of correct keys** in `metadata` (1 → single, ≥2 → multiple), never a separate type. The student snapshot sanitizer (`attempt_service._sanitize_question_for_student`) strips `correct_keys`/`correct_key` but emits a non-revealing `metadata.multiple = True` hint when there is more than one correct answer (derived from the `correct_keys` list, with a fallback to the `correct_key` string for legacy data). On the frontend the **same rule lives in one place** — `frontend/src/utils/questionType.js` (`resolveLogicalType`, `isMultiAnswer`, `parseCorrectKeys`, `QUESTION_TYPE_META`) — consumed by the question bank, exam editor and the student renderer. The import preview parses raw human CSV (connector words like "A y C") and intentionally keeps its own parser.
+
 **Import validation:** `import_service.py` validates all rows before writing any. A single invalid row causes the entire import to fail — no partial imports. The import runs **synchronously** in the request (`imports.py upload` → `ImportService.process_from_job`), updating `ImportJob` status to COMPLETED/FAILED. A dry-run mode is available for client-side validation preview before committing (`ImportPreviewView`/`ImportConfirmView`).
 
 **Heartbeat & abandonment detection:** `AttemptService.heartbeat()` writes key `edutest:heartbeat:{attempt_id}` to Redis with a 20-minute TTL (1 200 s). The `detect_abandoned` management command (scheduled by the GitHub Actions cron) scans `IN_PROGRESS` attempts whose heartbeat key has expired and transitions them to `ABANDONED`.
@@ -190,6 +192,7 @@ Organization (tenant root)
 - Chart components (`BarChart`, `DonutChart`, `Histogram`, `Heatmap`, `Sparkline`) are custom SVG/HTML implementations — no Recharts dependency.
 - `ChartSkeleton` is used as a loading placeholder for all chart containers.
 - `KpiCard` in `features/dashboard/` supports optional `sparkline`, `delta`, and `onClick` props.
+- **Question type:** `utils/questionType.js` is the single source of truth for resolving single/multiple/boolean/short-answer (see the *Question type* behavioral pattern above). Do not re-derive single-vs-multiple inline — import `resolveLogicalType`/`isMultiAnswer`/`parseCorrectKeys`.
 
 ### Tests
 

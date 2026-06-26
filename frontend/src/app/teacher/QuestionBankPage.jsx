@@ -9,16 +9,7 @@ import { ConfirmModal } from '../../features/shared/ConfirmModal';
 import { useToast } from '../../features/toast/ToastProvider';
 import { useDebounce } from '../../hooks';
 import { questions as questionsApi } from '../../services/api';
-
-const TYPE_LABELS = {
-  MULTIPLE_CHOICE: { label: 'Opción múltiple', variant: 'violet' },
-  BOOLEAN: { label: 'V/F', variant: 'amber' },
-  SHORT_ANSWER: { label: 'Respuesta corta', variant: 'teal' },
-  single_choice: { label: 'Opción única', variant: 'indigo' },
-  multiple_choice: { label: 'Opción múltiple', variant: 'violet' },
-  boolean: { label: 'V/F', variant: 'amber' },
-  short_answer: { label: 'Respuesta corta', variant: 'teal' },
-};
+import { resolveLogicalType, QUESTION_TYPE_META, LogicalType } from '../../utils/questionType';
 
 const DIFFICULTY_LABELS = {
   easy: { label: 'Fácil', variant: 'emerald' },
@@ -30,7 +21,7 @@ function normalize(q) {
   return {
     id: q.id,
     text: q.text ?? q.question_text ?? '',
-    type: q.question_type ?? q.type ?? 'MULTIPLE_CHOICE',
+    type: resolveLogicalType(q.question_type ?? q.type, q.metadata),
     topic: q.category ?? q.topic ?? q.metadata?.topic ?? q.metadata?.category ?? '—',
     difficulty: q.difficulty ?? q.metadata?.difficulty ?? 'medium',
     usage_count: q.usage_count ?? 0,
@@ -346,7 +337,7 @@ export default function QuestionBankPage() {
               </thead>
               <tbody>
                 {filtered.map(q => {
-                  const type = TYPE_LABELS[q.type] || TYPE_LABELS.MULTIPLE_CHOICE;
+                  const type = QUESTION_TYPE_META[q.type] || QUESTION_TYPE_META[LogicalType.MULTIPLE_CHOICE];
                   const diff = DIFFICULTY_LABELS[q.difficulty] || DIFFICULTY_LABELS.medium;
                   return (
                     <tr key={q.id} className="border-b border-line/40 last:border-0 hover:bg-bg-2/50 transition-colors">

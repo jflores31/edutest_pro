@@ -9,6 +9,7 @@ import { Button, Icon, Card, Input, Toggle, Tabs } from '../../design-system';
 import { useToast } from '../../features/toast/ToastProvider';
 import { exams as examsApi, questions as questionsApi } from '../../services/api';
 import { ConfirmModal } from '../../features/shared/ConfirmModal';
+import { parseCorrectKeys, resolveLogicalType } from '../../utils/questionType';
 
 // Module-level counter for unique element ids. Avoids Date.now() collisions
 // when several ids are generated within the same millisecond (e.g. two options).
@@ -72,16 +73,9 @@ function mapQuestionToApi(q) {
 function normalizeLoadedQuestion(q, eq) {
   const meta = q.question?.metadata || {};
   const qType = q.question?.question_type || 'MULTIPLE_CHOICE';
-  // Respuestas correctas: correct_keys (array) o correct_key ("A" o "A,C").
-  const correctKeys = (Array.isArray(meta.correct_keys) && meta.correct_keys.length)
-    ? meta.correct_keys.map(k => String(k).toUpperCase())
-    : (meta.correct_key
-        ? String(meta.correct_key).split(/[^A-Ea-e]+/).filter(Boolean).map(k => k.toUpperCase())
-        : []);
-  // Única vs múltiple = nº de respuestas correctas (el backend usa MULTIPLE_CHOICE para ambas).
-  const frontendType = qType === 'BOOLEAN' ? 'boolean'
-    : qType === 'SHORT_ANSWER' ? 'short_answer'
-    : (correctKeys.length > 1 ? 'multiple_choice' : 'single_choice');
+  // Respuestas correctas y tipo lógico (única/múltiple) → fuente única en utils.
+  const correctKeys = parseCorrectKeys(meta);
+  const frontendType = resolveLogicalType(qType, meta);
   const opts = (meta.options || []).map((o, i) => ({ id: `opt-${q.id}-${i}`, text: o.text || '' }));
   return {
     id: q.id,

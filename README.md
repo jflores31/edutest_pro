@@ -193,6 +193,12 @@ Las preferencias de email se gestionan en `GET/PATCH /api/v1/auth/me/notificatio
 
 ### Patrones clave
 
+- **Tipo de pregunta (única/múltiple/V-F/corta):** el backend solo guarda
+  `MULTIPLE_CHOICE/BOOLEAN/SHORT_ANSWER`; **única vs múltiple se deriva del nº de respuestas
+  correctas** (1 → única, ≥2 → múltiple). La regla está centralizada en `utils/questionType.js`
+  (`resolveLogicalType`, `isMultiAnswer`, `parseCorrectKeys`, `QUESTION_TYPE_META`) y la consumen el
+  banco de preguntas, el editor de exámenes y el render del alumno. El snapshot del alumno se sanea
+  (sin claves correctas) y solo lleva la pista `metadata.multiple` para mostrar radio vs checkbox.
 - **Autosave:** 600 ms debounce en ExamRunPage
 - **Heartbeat:** cada 25 s durante el examen
 - **mountedRef:** todos los componentes con fetch usan alive guard para evitar setState post-unmount
