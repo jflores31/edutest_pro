@@ -101,6 +101,7 @@ All have healthchecks. Nginx waits for `backend` to be healthy before starting.
 | `imports.py` | ImportJobViewSet, ImportPreviewView, ImportConfirmView |
 | `organizations.py` | OrganizationViewSet |
 | `integrations.py` | IntegrationListView, IntegrationToggleView |
+| `notifications.py` | NotificationsView (lists recent in-app notifications for the org) |
 | `mixins.py` | IsSameOrganization, IsTeacherOrAdmin, IsTeacherInOrg, `_rate_limit`, `_client_ip` |
 
 **Cookie auth middleware — `config/middleware/cookie_auth.py`**  
@@ -138,6 +139,7 @@ Organization (tenant root)
            └── ProctoringEvent (TAB_SWITCH, FOCUS_LOST, RECONNECT, OFFLINE)
  └── ExamTemplate
  └── ImportJob
+ └── Notification (in-app, org-scoped; type ∈ ATTEMPT_FINISHED | LOW_SCORE | PROCTORING_ALERT | DAILY_SUMMARY | SYSTEM)
 ```
 
 **Score storage:** `Attempt.score` is a `DecimalField` storing vigesimal 0–20. The `DashboardView` returns `avg_score` in the same 0–20 scale. The frontend `ScoreBadge` uses threshold `>= 11` and displays as `"X.X/20"`.
@@ -200,13 +202,14 @@ All tests live in `backend/apps/exams/tests/test_views.py`. Fixtures are defined
 
 ### Migrations
 
-Migrations live in `backend/apps/exams/migrations/`. Current state: `0001`–`0011`.  
+Migrations live in `backend/apps/exams/migrations/`. Current state: `0001`–`0012`.  
 - `0006` includes a `RunPython` step (`deduplicate_in_progress_attempts`) that resolves duplicate `IN_PROGRESS` attempts before adding the unique constraint — this is intentional and must not be removed.
 - `0007` is intentionally empty (no-op).
 - `0008` adds `extra_time_minutes` to `Attempt`.
 - `0009` adds `draft_token` UUID field to `ImportJob`.
 - `0010` adds `unique_student_code_per_org` constraint with idempotent `RunSQL` (safe to apply if constraint already exists).
 - `0011` adds `max_attempts` to `Exam`.
+- `0012` adds the `Notification` model (in-app, org-scoped notifications; exposed read-only via `GET /api/v1/notifications/` → `views/notifications.py`).
 
 When creating new migrations after model changes:
 ```bash
