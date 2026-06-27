@@ -10,19 +10,14 @@ from rest_framework.views import APIView
 
 from .mixins import IsTeacherOrAdmin
 from ..models import Attempt, Exam, Question
+from services.exam_engine import PASS_THRESHOLD
 
 logger = logging.getLogger("edutest")
 
 
 def _resolve_attempt_name(attempt):
-    """Nombre del participante del intento, sea alumno o usuario docente."""
-    if attempt.student_id and attempt.student:
-        s = attempt.student
-        full = f"{s.first_name} {s.last_name}".strip()
-        return full or s.code
-    if attempt.user_id and attempt.user:
-        return attempt.user.get_full_name() or attempt.user.username
-    return "—"
+    """Nombre del participante del intento (delega en Attempt.participant_name)."""
+    return attempt.participant_name
 
 
 def _resolve_attempt_email(attempt):
@@ -104,7 +99,7 @@ class DashboardView(APIView):
         agg = Attempt.objects.filter(completed_q).aggregate(
             total=Count("id"),
             avg=Avg("score"),
-            pass_count=Count("id", filter=Q(score__gte=11)),
+            pass_count=Count("id", filter=Q(score__gte=PASS_THRESHOLD)),
         )
         total_attempts = agg["total"]
         avg_score = float(agg["avg"]) if agg["avg"] else None
@@ -128,7 +123,7 @@ class DashboardView(APIView):
             prev_agg = Attempt.objects.filter(prev_completed_q).aggregate(
                 total=Count("id"),
                 avg=Avg("score"),
-                pass_count=Count("id", filter=Q(score__gte=11)),
+                pass_count=Count("id", filter=Q(score__gte=PASS_THRESHOLD)),
             )
             prev_total = prev_agg["total"]
             if prev_total > 0:

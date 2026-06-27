@@ -367,6 +367,21 @@ class Attempt(models.Model):
     def __str__(self):
         return f"{self.user.email} → {self.exam.title} [{self.status}]"
 
+    @property
+    def participant_name(self):
+        """Nombre del participante del intento, sea alumno (sin cuenta) o usuario docente.
+
+        Fuente única de verdad: antes esta lógica estaba duplicada en
+        exam_engine.py y dashboard.py.
+        """
+        if self.student_id and self.student:
+            s = self.student
+            full = f"{s.first_name} {s.last_name}".strip()
+            return full or s.code
+        if self.user_id and self.user:
+            return self.user.get_full_name() or self.user.username
+        return "—"
+
 
 class AttemptAnswer(models.Model):
     """Partial or final answer saved during an attempt."""

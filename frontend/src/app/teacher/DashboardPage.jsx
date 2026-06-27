@@ -10,6 +10,7 @@ import { dashboard as dashboardApi, courses as coursesApi } from '../../services
 import { KPICard, DonutSkeleton, BarSkeleton, ErrorBanner, LiveBanner, MobileAttemptCard, EmptyBanner, QuickActions } from '../../features/dashboard';
 import { PERIODS, STATUS_COLORS, AVATAR_COLORS, buildHeatmapMatrix, buildHistogram, buildBarData, buildDonut, getAttemptVariant, formatDuration, formatRelative } from '../../utils/dashboard';
 import { downloadCsv } from '../../utils/csv';
+import { PASS_THRESHOLD } from '../../utils/score';
 
 function SortIcon({ col, sort }) {
   if (sort.col !== col) return <span className="text-fg-3 ml-1">↕</span>;
@@ -347,16 +348,16 @@ export default function DashboardPage() {
 
           <Card
             title="Promedio por examen"
-            subtitle="Línea punteada = umbral de aprobación (≥ 11/20)"
+            subtitle={`Línea punteada = umbral de aprobación (≥ ${PASS_THRESHOLD}/20)`}
             variant="elevated"
             headerAction={
               <div className="flex items-center gap-3 text-2xs">
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-ok" /> ≥ 11</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-warn" /> {'< 11'}</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-ok" /> ≥ {PASS_THRESHOLD}</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-warn" /> {`< ${PASS_THRESHOLD}`}</span>
               </div>
             }
           >
-            {statsLoading ? <BarSkeleton /> : <BarChart data={barData} threshold={11} maxValue={20} />}
+            {statsLoading ? <BarSkeleton /> : <BarChart data={barData} threshold={PASS_THRESHOLD} maxValue={20} />}
           </Card>
         </div>
 

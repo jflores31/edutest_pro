@@ -8,6 +8,7 @@ import { PageHead } from '../../layout';
 import { Icon, Card, Input, Skeleton } from '../../design-system';
 import { BarChart } from '../../features/charts';
 import { exams as examsApi } from '../../services/api';
+import { PASS_THRESHOLD, isPassing } from '../../utils/score';
 
 const DISTRIBUTION_LABELS = ['0-5', '5-8', '8-11', '11-15', '15-20'];
 
@@ -147,7 +148,7 @@ export default function ComparePage() {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-xs text-fg-2">Promedio</span>
-                      <span className={`text-sm font-bold ${exam.avg_score != null && exam.avg_score >= 11 ? 'text-ok' : 'text-danger'}`}>
+                      <span className={`text-sm font-bold ${isPassing(exam.avg_score) ? 'text-ok' : 'text-danger'}`}>
                         {exam.avg_score != null ? `${exam.avg_score.toFixed(1)}/20` : '—'}
                       </span>
                     </div>
@@ -165,7 +166,7 @@ export default function ComparePage() {
             </div>
 
             <Card title="Promedio por examen" subtitle="Comparación de puntajes promedio (vigesimal 0–20)">
-              <BarChart data={barData} threshold={11} maxValue={20} />
+              <BarChart data={barData} threshold={PASS_THRESHOLD} maxValue={20} />
             </Card>
 
             <Card title="Distribución de notas" subtitle="Cómo se distribuyen los puntajes">
@@ -217,7 +218,7 @@ export default function ComparePage() {
                   <tr className="border-b border-line/40">
                     <td className="px-4 py-3 text-sm text-fg-1">Promedio</td>
                     {compareData.map(e => (
-                      <td key={e.exam_id} className={`px-4 py-3 text-center text-sm font-bold ${e.avg_score != null && e.avg_score >= 11 ? 'text-ok' : 'text-danger'}`}>
+                      <td key={e.exam_id} className={`px-4 py-3 text-center text-sm font-bold ${isPassing(e.avg_score) ? 'text-ok' : 'text-danger'}`}>
                         {e.avg_score != null ? `${e.avg_score.toFixed(1)}/20` : '—'}
                       </td>
                     ))}

@@ -16,7 +16,9 @@ from .exceptions import (
 logger = logging.getLogger("edutest.exam_engine")
 TIME_GRACE_SECONDS = 30
 SCORE_MAX = 20
-PASS_THRESHOLD = 11
+# Nota mínima de aprobación (escala vigesimal 0–20). Fuente de verdad del backend:
+# dashboard.py y exams.py importan esta constante en vez de repetir el número.
+PASS_THRESHOLD = 14
 
 
 class ExamEngine:
@@ -139,11 +141,7 @@ class ExamEngine:
                 "attempt_id": attempt_id,
                 "status": "completed",
                 "settings": settings,
-                "student_name": (
-                    f"{attempt.student.first_name} {attempt.student.last_name}"
-                    if attempt.student_id
-                    else (attempt.user.get_full_name() or attempt.user.username)
-                ),
+                "student_name": attempt.participant_name,
             }
 
             if settings["show_score"]:
@@ -462,11 +460,7 @@ class ExamEngine:
     def _notify_attempt_completed(self, attempt):
         try:
             from services.notifications import create_notification
-            student_name = (
-                f"{attempt.student.first_name} {attempt.student.last_name}"
-                if attempt.student_id
-                else (attempt.user.get_full_name() or attempt.user.username)
-            )
+            student_name = attempt.participant_name
             score_val = float(attempt.score)
             create_notification(
                 attempt.organization_id, "attempt_finished",

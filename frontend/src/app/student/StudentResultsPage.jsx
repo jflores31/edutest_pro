@@ -5,50 +5,43 @@
  */
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Icon, Badge, Card, Button } from '../../design-system';
-
-const PASS_THRESHOLD = 11;
-
-function getScoreColor(score, passed) {
-  if (passed) return 'text-ok';
-  if (score == null) return 'text-fg-0';
-  return score >= PASS_THRESHOLD * 0.6 ? 'text-warn' : 'text-danger';
-}
-
-function getScoreLabel(score, passed) {
-  if (passed) return 'Aprobado';
-  if (score == null) return '—';
-  return score >= PASS_THRESHOLD * 0.6 ? 'En proceso' : 'Desaprobado';
-}
-
-function getScoreVariant(score, passed) {
-  if (passed) return 'ok';
-  if (score == null) return 'neutral';
-  return score >= PASS_THRESHOLD * 0.6 ? 'warn' : 'danger';
-}
+import { PASS_THRESHOLD } from '../../utils/score';
+import StatusScreen from '../../components/StatusScreen';
+import { printCertificate } from '../../utils/certificate';
 
 export default function StudentResultsPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const result = location.state?.result;
+  const examTitle = location.state?.examTitle || '';
+
+  function handleDownloadCertificate() {
+    if (!result) return;
+    printCertificate({
+      name: result.student_name || '',
+      examTitle,
+      score: result.score ?? null,
+      scoreMax: result.score_max || 20,
+      passed: result.passed ?? false,
+    });
+  }
 
   // ── No data ──
   if (!result) {
     return (
-      <div className="min-h-screen bg-bg flex items-center justify-center p-6">
-        <div className="bg-bg-1 border border-line rounded-2xl p-8 max-w-md w-full text-center">
-          <div className="grid h-16 w-16 place-items-center rounded-full bg-warn/10 mx-auto mb-4">
-            <Icon name="info" size={28} className="text-warn" />
-          </div>
-          <h1 className="text-xl font-semibold text-fg-0 mb-2">Resultados no disponibles</h1>
-          <p className="text-sm text-fg-2 mb-6">
-            No se encontraron los resultados de este examen. Puede que el examen no se haya enviado correctamente.
-          </p>
+      <StatusScreen
+        icon="info"
+        tone="warn"
+        maxWidth="md"
+        title="Resultados no disponibles"
+        message="No se encontraron los resultados de este examen. Puede que el examen no se haya enviado correctamente."
+        action={
           <Button onClick={() => navigate(`/exam/${slug}`, { replace: true })}>
             Volver al inicio
           </Button>
-        </div>
-      </div>
+        }
+      />
     );
   }
 
@@ -63,57 +56,85 @@ export default function StudentResultsPage() {
   const earnedPoints = result.earned_points ?? 0;
   const totalPoints = result.total_points ?? 0;
   const studentName = result.student_name || '';
+  const firstName = studentName.trim().split(/\s+/)[0] || '';
 
   // ── Teacher disabled all results ──
   if (!showScore && !showAnswers) {
     return (
-      <div className="min-h-screen bg-bg flex items-center justify-center p-6">
-        <div className="bg-bg-1 border border-line rounded-2xl p-8 max-w-md w-full text-center">
-          <div className="grid h-16 w-16 place-items-center rounded-full bg-ok/10 mx-auto mb-4">
-            <Icon name="check" size={28} className="text-ok" />
+      <StatusScreen
+        icon="check"
+        tone="ok"
+        maxWidth="md"
+        title="Examen completado"
+        message="Tu examen ha sido enviado correctamente."
+        action={
+          <div className="flex flex-col items-center gap-3">
+            <Button variant="secondary" onClick={handleDownloadCertificate}>
+              Descargar constancia (PDF)
+            </Button>
+            <Button onClick={() => navigate(`/exam/${slug}`, { replace: true })}>
+              Volver al inicio
+            </Button>
           </div>
-          <h1 className="text-xl font-semibold text-fg-0 mb-2">Examen completado</h1>
-          <p className="text-sm text-fg-2 mb-6">Tu examen ha sido enviado correctamente.</p>
-          <Button onClick={() => navigate(`/exam/${slug}`, { replace: true })}>
-            Volver al inicio
-          </Button>
-        </div>
-      </div>
+        }
+      />
     );
   }
 
   // ── Full results ──
   return (
     <div className="min-h-screen bg-bg">
-      {/* Header */}
-      <div className="bg-bg-1 border-b border-line">
-        <div className="max-w-3xl mx-auto px-4 md:px-6 py-6 text-center">
-          <div className={`grid h-16 w-16 place-items-center rounded-full mx-auto mb-4 ${
-            passed ? 'bg-ok/10' : score != null ? 'bg-danger/10' : 'bg-warn/10'
-          }`}>
-            <Icon name="check" size={28} className={passed ? 'text-ok' : score != null ? 'text-danger' : 'text-warn'} />
+      {/* Hero — celebra al aprobar / alienta al desaprobar (solo si se muestra la nota) */}
+      {showScore ? (
+        <div className={`border-b ${passed ? 'bg-ok-soft border-ok/25' : 'bg-danger-soft border-danger/25'}`}>
+          <div className="max-w-3xl mx-auto px-4 md:px-6 py-10 md:py-12 text-center">
+            <div className={`grid h-20 w-20 place-items-center rounded-full mx-auto mb-5 ${passed ? 'bg-ok/15' : 'bg-danger/15'}`}>
+              <Icon name={passed ? 'award' : 'refresh'} size={38} strokeWidth={1.8} className={passed ? 'text-ok' : 'text-danger'} />
+            </div>
+            <h1 className={`text-2xl md:text-3xl font-bold mb-2 text-balance ${passed ? 'text-ok' : 'text-danger'}`}>
+              {passed ? '¡Felicidades! Aprobaste el examen 🎉' : 'No aprobaste esta vez'}
+            </h1>
+            <p className="text-sm md:text-base text-fg-1 max-w-md mx-auto leading-relaxed">
+              {passed
+                ? `¡Excelente trabajo${firstName ? `, ${firstName}` : ''}! Demostraste lo que sabes. Sigue así. 💪`
+                : `${firstName ? `${firstName}, n` : 'N'}o alcanzaste la nota mínima (${PASS_THRESHOLD}/20), pero estás en el camino. Repasa los temas marcados e inténtalo de nuevo. ¡Tú puedes! 🌱`}
+            </p>
+            {studentName && <p className="text-xs text-fg-3 mt-4">{studentName}</p>}
           </div>
-          <h1 className="text-2xl font-semibold text-fg-0 mb-1">Examen completado</h1>
-          {studentName && <p className="text-sm font-medium text-fg-1 mb-1">{studentName}</p>}
-          <p className="text-sm text-fg-2">Revisa tus resultados a continuación</p>
         </div>
-      </div>
+      ) : (
+        <div className="bg-bg-1 border-b border-line">
+          <div className="max-w-3xl mx-auto px-4 md:px-6 py-6 text-center">
+            <div className="grid h-16 w-16 place-items-center rounded-full mx-auto mb-4 bg-ok/10">
+              <Icon name="check" size={28} className="text-ok" />
+            </div>
+            <h1 className="text-2xl font-semibold text-fg-0 mb-1">Examen completado</h1>
+            {studentName && <p className="text-sm font-medium text-fg-1 mb-1">{studentName}</p>}
+            <p className="text-sm text-fg-2">Revisa tus respuestas a continuación</p>
+          </div>
+        </div>
+      )}
 
       <div className="max-w-3xl mx-auto px-4 md:px-6 py-6 space-y-6">
         {/* Score card */}
         {showScore && (
           <Card padding="md">
-            <div className="text-center py-4">
-              <div className={`text-5xl font-bold tabular-nums mb-2 ${getScoreColor(score, passed)}`}>
+            <div className={`text-center py-5 rounded-xl ${passed ? 'bg-ok/[0.04]' : 'bg-danger/[0.04]'}`}>
+              <div className={`text-6xl font-bold tabular-nums mb-2 ${passed ? 'text-ok' : 'text-danger'}`}>
                 {score != null ? score.toFixed(1) : '—'}
                 <span className="text-2xl text-fg-3 font-normal">/{result.score_max || 20}</span>
               </div>
-              <Badge variant={getScoreVariant(score, passed)} className="mb-3">
-                {getScoreLabel(score, passed)}
+              <Badge variant={passed ? 'ok' : 'danger'} className="mb-3">
+                {passed ? 'Aprobado' : 'Desaprobado'}
               </Badge>
               <p className="text-sm text-fg-2">
                 {earnedPoints} de {totalPoints} punto{totalPoints !== 1 ? 's' : ''} obtenido{totalPoints !== 1 ? 's' : ''}
               </p>
+              {!passed && score != null && PASS_THRESHOLD - score > 0 && (
+                <p className="text-xs text-danger mt-2 font-medium">
+                  Te faltaron {(PASS_THRESHOLD - score).toFixed(1)} puntos para aprobar (mínimo {PASS_THRESHOLD}/20)
+                </p>
+              )}
             </div>
           </Card>
         )}
@@ -227,11 +248,26 @@ export default function StudentResultsPage() {
           </Card>
         )}
 
-        {/* Volver */}
-        <div className="text-center pb-8">
-          <Button onClick={() => navigate(`/exam/${slug}`, { replace: true })}>
-            Volver al inicio
-          </Button>
+        {/* Acciones */}
+        <div className="text-center pb-8 space-y-3">
+          <div>
+            <Button
+              variant="secondary"
+              onClick={handleDownloadCertificate}
+              icon={
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+              }
+            >
+              Descargar constancia (PDF)
+            </Button>
+          </div>
+          <div>
+            <Button onClick={() => navigate(`/exam/${slug}`, { replace: true })}>
+              Volver al inicio
+            </Button>
+          </div>
         </div>
       </div>
     </div>

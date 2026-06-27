@@ -111,7 +111,7 @@ All have healthchecks. Nginx waits for `backend` to be healthy before starting.
 
 | File | Responsibility |
 |---|---|
-| `exam_engine.py` | `ExamEngine.start_exam()`, `submit_exam()`, `calculate_score()`. Score scale: **vigesimal 0–20**, pass threshold ≥ 11 (`PASS_THRESHOLD = 11`). |
+| `exam_engine.py` | `ExamEngine.start_exam()`, `submit_exam()`, `calculate_score()`. Score scale: **vigesimal 0–20**, pass threshold ≥ 14 (`PASS_THRESHOLD = 14`). Backend single source of truth — `dashboard.py`, `exams.py`, `students.py` import this constant instead of hardcoding the number. |
 | `attempt_service.py` | `save_answer`, `heartbeat`, `get_state`, `detect_abandoned`. Heartbeat key prefix: `HEARTBEAT_PREFIX`. |
 | `import_service.py` | CSV/XLSX parsing, validation, atomic bulk creation of `Question` rows. |
 | `exceptions.py` | Typed service exceptions (`CrossTenantAccessError`, `ExamTimeExpiredError`, etc.) — all have `.to_dict()` for response serialization. |
@@ -142,13 +142,15 @@ Organization (tenant root)
  └── Notification (in-app, org-scoped; type ∈ ATTEMPT_FINISHED | LOW_SCORE | PROCTORING_ALERT | DAILY_SUMMARY | SYSTEM)
 ```
 
-**Score storage:** `Attempt.score` is a `DecimalField` storing vigesimal 0–20. The `DashboardView` returns `avg_score` in the same 0–20 scale. The frontend `ScoreBadge` uses threshold `>= 11` and displays as `"X.X/20"`.
+**Score storage:** `Attempt.score` is a `DecimalField` storing vigesimal 0–20. The `DashboardView` returns `avg_score` in the same 0–20 scale. The frontend pass threshold is centralized in `frontend/src/utils/score.js` (`PASS_THRESHOLD = 14`, `isPassing`, `scoreTone`) — `ScoreBadge`, dashboard, compare, student profile and the student results page all import it instead of hardcoding `11`. Display format is `"X.X/20"`. Keep this value in sync with backend `services/exam_engine.py`.
 
 **Dashboard caching:** `DashboardView` caches the full payload in Redis for 300 seconds (`dashboard_stats_{org_id}_{course_id}`). `DashboardLiveView` is never cached (polled every 15 s from the frontend).
 
 #### Key behavioral patterns
 
-**Student authentication (`auth.py`):** `StudentAttemptAuthentication` produces a `StudentPrincipal` — a lightweight dataclass, not a `User` model instance. The JWT payload carries `attempt_id`, `student_id`, `org_id`, `exam_id`, and type marker `"student_attempt"`. Token lifetime is 4 hours. Revoked tokens are stored in Redis at `edutest:revoked_token:{jti}`. Header format: `Authorization: Student <jwt>` (not `Bearer`).
+**Student authentication (`auth.py`):** `StudentAttemptAuthentication` produces a `StudentPrincipal` — a lightweight dataclass, not a `User` model instance. The JWT payload carries `attempt_id`, `student_id`, `org_id`, `exam_id`, and type marker `"student_attempt"`. Token lifetime is 4 hours. Revoked tokens are stored in Redis at `edutest:revoked_token:{jti}`. Header format: `Authorization: Student <jwt>` (not `Bearer`). The token is **only accepted while the attempt is `IN_PROGRESS`** (`_validate_token_claims`) and is revoked on finish — so it cannot authorize any post-exam request (e.g. a certificate).
+
+**Participant name (`Attempt.participant_name`):** read-only model property — `"first last"` for codeless students (falls back to `code`), else `user.get_full_name()`/`username`. Single source of truth reused by `exam_engine.py` and `dashboard._resolve_attempt_name`; do not re-inline the `if student_id else user` expression.
 
 **ExamSnapshot pattern:** When `ExamEngine.start_exam()` runs, the entire exam structure (questions, options, metadata) is serialized into an `ExamSnapshot` row. The student session reads exclusively from the snapshot, so editing questions after launch does not affect active attempts.
 
@@ -166,7 +168,7 @@ Organization (tenant root)
 
 **Design tokens:** `src/design-system/tokens.css` — CSS variables (`--accent`, `--ok`, `--warn`, `--danger`, `--fg-*`, `--bg-*`, `--line`). Theme is toggled via `<html data-theme="light|dark">`. Charts read these via `getComputedColor()` from `features/charts/chart-theme.js`.
 
-**API client:** `src/services/api.js` — native `fetch` with silent JWT refresh on 401 (queue-based). Teacher auth via httpOnly cookies (`credentials: 'include'`); student exam auth via `Authorization: Student <jwt>` header (token stored in memory, not localStorage).
+**API client:** `src/services/api.js` — native `fetch` with silent JWT refresh on 401 (queue-based). Teacher auth via httpOnly cookies (`credentials: 'include'`); student exam auth via `Authorization: Student <jwt>` header. The header value lives in a module-level variable (`setStudentToken`), but `ExamRunPage`/`StudentLoginPage` also persist `attempt_token`/`attempt_id` in `localStorage` **on purpose** so a mid-exam page refresh resumes the session (it re-calls `setStudentToken`). Trade-off accepted: short (4 h) token lifetime mitigates the XSS exposure.
 
 **Authentication flows:**
 
@@ -195,6 +197,10 @@ Organization (tenant root)
 - `ChartSkeleton` is used as a loading placeholder for all chart containers.
 - `KpiCard` in `features/dashboard/` supports optional `sparkline`, `delta`, and `onClick` props.
 - **Question type:** `utils/questionType.js` is the single source of truth for resolving single/multiple/boolean/short-answer (see the *Question type* behavioral pattern above). Do not re-derive single-vs-multiple inline — import `resolveLogicalType`/`isMultiAnswer`/`parseCorrectKeys`.
+- **Answered check:** `utils/answers.js` `isAnswered(value)` is the single source of truth for "does this answer count?" — handles boolean `false` (V/F "Falso") and empty arrays correctly. `ExamRunPage` uses it for the question map, progress, skipped count and the finish modal. Do not inline `!value || value === ''` (it miscounts `false`).
+- **Status screens:** `components/StatusScreen.jsx` is the reusable full-screen status card (icon circle + title + message + action). Used by the student login error, the exam-run error and the results no-data/disabled screens. Prefer it over re-creating centered cards.
+- **Student certificate:** the post-exam "constancia" is generated **client-side** by `utils/certificate.js` (`printCertificate` → hidden iframe → browser "Save as PDF"). It is intentionally not a backend endpoint: the student token is only valid while the attempt is `IN_PROGRESS` and is revoked on finish (`auth.py`), so a server-rendered certificate would need a separate signed-link auth path.
+- **Sidebar collapse** state persists in `localStorage` (`sidebar_collapsed`); collapsed = icon-only rail (see `Sidebar.jsx`).
 
 ### Tests
 

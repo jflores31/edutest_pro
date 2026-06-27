@@ -1,16 +1,16 @@
 import { Badge } from './ui'
+import { PASS_THRESHOLD, isPassing } from '../utils/score'
 
-// Vigesimal score 0–20. Pass threshold is >= 11.
-export const PASS_THRESHOLD = 11
+// Vigesimal score 0–20. Umbral centralizado en utils/score.js.
+export { PASS_THRESHOLD }
 
 export function ScoreBadge({ score }) {
   if (score === null || score === undefined) {
     return <Badge tone="default">—</Badge>
   }
   const value = Number(score)
-  const passed = value >= PASS_THRESHOLD
   return (
-    <Badge tone={passed ? 'ok' : 'danger'}>
+    <Badge tone={isPassing(value) ? 'ok' : 'danger'}>
       {value.toFixed(1)}/20
     </Badge>
   )

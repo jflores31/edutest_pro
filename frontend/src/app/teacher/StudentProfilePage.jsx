@@ -9,6 +9,7 @@ import { Button, Icon, Badge, Card, Avatar, Skeleton } from '../../design-system
 import { Sparkline } from '../../features/charts';
 import { useToast } from '../../features/toast/ToastProvider';
 import { students as studentsApi } from '../../services/api';
+import { isPassing } from '../../utils/score';
 
 function formatDate(iso) {
   if (!iso) return '—';
@@ -20,8 +21,8 @@ function normalizeProfile(data) {
     id: a.id,
     exam: a.exam_title ?? '—',
     score: a.score != null ? Math.round(a.score * 10) / 10 : null,
-    // score vigesimal: pass >= 11
-    status: a.score != null ? (a.score >= 11 ? 'pass' : 'fail') : 'fail',
+    // score vigesimal: aprueba según umbral centralizado (utils/score.js)
+    status: a.score != null ? (isPassing(a.score) ? 'pass' : 'fail') : 'fail',
     date: formatDate(a.completed_at),
   }));
 
@@ -184,7 +185,7 @@ export default function StudentProfilePage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <Card padding="md">
             <div className="text-xs text-fg-2 mb-1">Promedio</div>
-            <div className={`text-2xl font-bold ${student.stats.avg_score != null && student.stats.avg_score >= 11 ? 'text-ok' : 'text-danger'}`}>
+            <div className={`text-2xl font-bold ${isPassing(student.stats.avg_score) ? 'text-ok' : 'text-danger'}`}>
               {student.stats.avg_score != null ? `${student.stats.avg_score}/20` : '—'}
             </div>
           </Card>

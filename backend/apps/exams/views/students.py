@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 
 from .mixins import IsTeacherInOrg
 from ..models import Attempt, Course, Student
+from services.exam_engine import PASS_THRESHOLD
 from ..serializers import (
     CourseSerializer, StudentProfileSerializer, StudentSerializer,
 )
@@ -369,7 +370,7 @@ class StudentViewSet(viewsets.ModelViewSet):
 
             avg     = data.get("avg_score")
             avg_str = f"{avg:.1f}/20" if avg is not None else "N/A"
-            avg_ok  = (avg or 0) >= 11
+            avg_ok  = (avg or 0) >= PASS_THRESHOLD
             S_KPI_V  = ps("kv", fontSize=20, fontName="Helvetica-Bold",
                           textColor=C_OK if avg_ok else C_DANGER,
                           alignment=TA_CENTER, leading=24)
@@ -408,7 +409,7 @@ class StudentViewSet(viewsets.ModelViewSet):
                 for a in attempts[:15]:
                     sc     = a.get("score")
                     sc_str = f"{sc:.1f}/20" if sc is not None else "N/A"
-                    passed = (sc or 0) >= 11
+                    passed = (sc or 0) >= PASS_THRESHOLD
                     S_SC   = ps("sc", fontSize=8, fontName="Helvetica-Bold",
                                 textColor=C_OK if passed else C_DANGER, alignment=TA_CENTER)
                     S_ST   = ps("st", fontSize=7, fontName="Helvetica-Bold",

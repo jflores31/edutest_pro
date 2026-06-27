@@ -7,6 +7,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { setStudentToken, attempts } from '../../services/api';
 import { QuestionBody } from '../../features/student/QuestionRenderers';
+import { isAnswered } from '../../utils/answers';
+import StatusScreen from '../../components/StatusScreen';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -84,18 +86,31 @@ function OfflineOverlay({ onRetry }) {
 
 // ─── ProctoringToast ─────────────────────────────────────────────────────────
 
+// El componente se monta con `key` única por evento, por lo que cada aviso
+// reinicia su propio temporizador. El toast se muestra al *regresar* a la
+// pestaña (cuando la página vuelve a estar visible) para que el setTimeout no
+// quede throttleado en segundo plano y el aviso sí desaparezca solo.
 function ProctoringToast({ message, onClose }) {
   useEffect(() => {
-    const id = setTimeout(onClose, 4000);
+    const id = setTimeout(onClose, 5000);
     return () => clearTimeout(id);
   }, [onClose]);
 
   return (
-    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-warn text-white px-4 py-2.5 rounded-xl shadow-lg text-sm font-medium flex items-center gap-2 animate-fade-in">
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-warn text-white pl-4 pr-2 py-2.5 rounded-xl shadow-lg text-sm font-medium flex items-center gap-2 animate-fade-in max-w-[92vw]">
       <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0 3.75h.008M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
-      {message}
+      <span className="min-w-0">{message}</span>
+      <button
+        onClick={onClose}
+        aria-label="Cerrar aviso"
+        className="flex-shrink-0 grid place-items-center h-6 w-6 rounded-lg hover:bg-white/20 transition-colors"
+      >
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.4}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
     </div>
   );
 }
@@ -119,8 +134,18 @@ export default function ExamRunPage() {
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState('');
   const [offline, setOffline]   = useState(!navigator.onLine);
-  const [toast, setToast]       = useState('');
+  const [toast, setToast]       = useState(null); // { id, msg }
+  const [visited, setVisited]   = useState({});   // preguntas que el alumno ya vio
+  const [tabSwitches, setTabSwitches] = useState(0); // nº de salidas de pestaña detectadas
   const [finishing, setFinishing] = useState(false);
+
+  // ── Toast de proctoring (clave única por aviso → reinicia su temporizador) ──
+  const toastIdRef = useRef(0);
+  const showToast = useCallback((msg) => {
+    toastIdRef.current += 1;
+    setToast({ id: toastIdRef.current, msg });
+  }, []);
+  const clearToast = useCallback(() => setToast(null), []);
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
 
   // ── Redirect si no hay sesión o token mock obsoleto ──────────────────────
@@ -209,6 +234,31 @@ export default function ExamRunPage() {
     return () => clearInterval(id);
   }, []);
 
+  // ── Aviso al recargar / cerrar con el examen en curso ───────────────────
+  // Evita perder el examen por una recarga o cierre accidental. Se desactiva
+  // cuando ya se está entregando (`finishing`). En navegación SPA (al ir a
+  // resultados) este evento no se dispara, así que no estorba.
+  useEffect(() => {
+    const onBeforeUnload = (e) => {
+      if (finishing) return;
+      e.preventDefault();
+      e.returnValue = '';
+      return '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [finishing]);
+
+  // ── Marca la pregunta actual como "vista" ────────────────────────────────
+  // Permite distinguir en el mapa una pregunta saltada (visitada pero sin
+  // responder → ámbar) de una que el alumno aún no ha abierto (neutral).
+  useEffect(() => {
+    const cur = (exam?.questions || [])[idx];
+    if (!cur) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- marcar "vista" al cambiar de pregunta es la sincronización deseada
+    setVisited(v => (v[cur.id] ? v : { ...v, [cur.id]: true }));
+  }, [exam, idx]);
+
   // ── Offline detection ─────────────────────────────────────────────────────
   useEffect(() => {
     const goOffline = () => setOffline(true);
@@ -230,10 +280,16 @@ export default function ExamRunPage() {
   useEffect(() => {
     const onVisibility = () => {
       if (document.hidden) {
+        // El alumno salió de la pestaña: registramos el evento y contamos la salida.
+        // NO mostramos el toast aquí porque su temporizador quedaría throttleado en
+        // segundo plano (ver fix en ProctoringToast).
         sendEvent('TAB_SWITCH');
-        setToast('⚠ Cambio de pestaña detectado y registrado');
+        setTabSwitches(n => n + 1);
       } else {
+        // El alumno volvió: ahora la pestaña está activa, mostramos el aviso y su
+        // temporizador corre con normalidad (desaparece solo a los 5 s).
         sendEvent('RECONNECT');
+        showToast('Saliste de la pestaña del examen. Esto quedó registrado.');
       }
     };
     const onBlur = () => {
@@ -245,7 +301,7 @@ export default function ExamRunPage() {
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('blur', onBlur);
     };
-  }, [sendEvent]);
+  }, [sendEvent, showToast]);
 
   // ── Auto-save con debounce 600 ms ─────────────────────────────────────────
   const saveTimers = useRef({});
@@ -276,7 +332,7 @@ export default function ExamRunPage() {
   }
 
   // ── Finalizar ─────────────────────────────────────────────────────────────
-  const pendingCount = (exam?.questions || []).filter(qq => !answers[qq.id] || answers[qq.id] === '').length;
+  const pendingCount = (exam?.questions || []).filter(qq => !isAnswered(answers[qq.id])).length;
 
   function confirmFinish() {
     setShowFinishConfirm(true);
@@ -296,7 +352,7 @@ export default function ExamRunPage() {
       localStorage.removeItem('attempt_ends_at');
       localStorage.removeItem('attempt_snapshot');
       localStorage.removeItem('attempt_block_tab');
-      navigate(`/exam/${slug}/results`, { state: { result: data, attemptId: attemptId.current } });
+      navigate(`/exam/${slug}/results`, { state: { result: data, attemptId: attemptId.current, examTitle: exam?.title } });
     } catch {
       setError('No se pudo finalizar el examen. Verifica tu conexión.');
       setFinishing(false);
@@ -314,18 +370,17 @@ export default function ExamRunPage() {
   );
 
   if (error) return (
-    <div className="min-h-screen bg-bg grid place-items-center p-6">
-      <div className="bg-bg-1 border border-danger/30 rounded-2xl p-8 max-w-sm w-full text-center">
-        <div className="w-12 h-12 rounded-full bg-danger/10 grid place-items-center mx-auto mb-4">
-          <svg className="w-6 h-6 text-danger" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-          </svg>
-        </div>
-        <p className="text-danger text-sm font-medium">{error}</p>
-        <button onClick={() => window.location.reload()}
-          className="mt-4 text-xs text-fg-2 underline">Reintentar</button>
-      </div>
-    </div>
+    <StatusScreen
+      icon="alert"
+      tone="danger"
+      title="No se pudo cargar el examen"
+      message={error}
+      action={
+        <button onClick={() => window.location.reload()} className="text-xs text-fg-2 underline">
+          Reintentar
+        </button>
+      }
+    />
   );
 
   if (!exam) return null;
@@ -334,15 +389,17 @@ export default function ExamRunPage() {
   const questions = exam.questions || [];
   const q         = questions[idx];
   const total     = questions.length;
-  const answered  = questions.filter(qq => answers[qq.id] !== undefined && answers[qq.id] !== '').length;
+  const answered  = questions.filter(qq => isAnswered(answers[qq.id])).length;
+  // Saltadas = visitadas pero sin responder (las que el alumno abrió y dejó en blanco)
+  const skippedCount = questions.filter(qq => visited[qq.id] && !isAnswered(answers[qq.id])).length;
   const progress  = total > 0 ? (answered / total) * 100 : 0;
   const savedAgo  = savedAt ? Math.max(1, Math.round((now - savedAt) / 1000)) : null;
 
   return (
     <div className="min-h-screen bg-bg flex flex-col">
 
-      {/* Proctoring toast */}
-      {toast && <ProctoringToast message={toast} onClose={() => setToast('')} />}
+      {/* Proctoring toast (keyed → cada aviso reinicia su temporizador) */}
+      {toast && <ProctoringToast key={toast.id} message={toast.msg} onClose={clearToast} />}
 
       {/* Offline overlay */}
       {offline && <OfflineOverlay onRetry={() => { if (navigator.onLine) setOffline(false); }} />}
@@ -355,9 +412,34 @@ export default function ExamRunPage() {
           <p className="text-fg-0 font-medium text-sm truncate">{exam.title}</p>
         </div>
 
+        {/* Salidas de pestaña (proctoring) */}
+        {tabSwitches > 0 && (
+          <span
+            className="hidden sm:inline-flex items-center gap-1.5 text-2xs font-medium text-warn bg-warn/10 border border-warn/30 rounded-full px-2.5 py-1 flex-shrink-0"
+            title="Cada vez que sales de la pestaña queda registrado"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Salidas: {tabSwitches}
+          </span>
+        )}
+
         {/* Guardado */}
-        <span className="hidden md:block text-xs text-fg-3 flex-shrink-0">
-          {savedAgo ? `Guardado hace ${savedAgo}s` : 'Sin cambios pendientes'}
+        <span className="hidden md:flex items-center gap-1 text-xs flex-shrink-0">
+          {savedAgo == null ? (
+            <span className="text-fg-3">Sin cambios pendientes</span>
+          ) : savedAgo <= 2 ? (
+            <span className="inline-flex items-center gap-1 text-ok">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.4}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+              Guardado
+            </span>
+          ) : (
+            <span className="text-fg-3">Guardado hace {savedAgo}s</span>
+          )}
         </span>
 
         {/* Timer */}
@@ -406,24 +488,39 @@ export default function ExamRunPage() {
           </p>
           <div className="grid grid-cols-5 gap-1.5">
             {questions.map((qq, i) => {
-              const done   = answers[qq.id] !== undefined && answers[qq.id] !== '';
-              const active = i === idx;
+              const done    = isAnswered(answers[qq.id]);
+              const active  = i === idx;
+              const pending = !done && !active && visited[qq.id]; // visitada pero sin responder
               return (
                 <button key={qq.id} onClick={() => setIdx(i)}
+                  title={pending ? 'Sin responder' : undefined}
                   className={`relative h-9 rounded-xl text-xs font-medium border transition-all
                     ${active
                       ? 'border-accent bg-accent/15 text-accent'
                       : done
                         ? 'border-ok/40 bg-ok/10 text-ok'
-                        : 'border-line text-fg-2 hover:border-fg-3 hover:bg-bg-2'}`}>
+                        : pending
+                          ? 'border-warn/60 bg-warn/10 text-warn'
+                          : 'border-line text-fg-2 hover:border-fg-3 hover:bg-bg-2'}`}>
                   {i + 1}
                   {active && (
                     <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-warn" />
+                  )}
+                  {pending && (
+                    <span className="absolute -top-1 -right-1 grid h-3.5 w-3.5 place-items-center rounded-full bg-warn text-white text-[8px] font-bold leading-none">!</span>
                   )}
                 </button>
               );
             })}
           </div>
+
+          {/* Aviso de preguntas saltadas */}
+          {skippedCount > 0 && (
+            <p className="mt-3 flex items-center gap-1.5 text-2xs text-warn bg-warn/10 border border-warn/30 rounded-lg px-2.5 py-1.5">
+              <span className="grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full bg-warn text-white text-[8px] font-bold leading-none">!</span>
+              {skippedCount} pregunta{skippedCount !== 1 ? 's' : ''} sin responder
+            </p>
+          )}
 
           {/* Leyenda */}
           <div className="mt-4 space-y-1.5 text-2xs text-fg-3">
@@ -436,7 +533,10 @@ export default function ExamRunPage() {
               </span>Actual
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded border border-line" />Sin responder
+              <span className="w-3 h-3 rounded border border-warn/60 bg-warn/10" />Sin responder
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded border border-line" />Sin ver
             </div>
           </div>
         </aside>

@@ -9,8 +9,9 @@
  * @param {number} maxRows    - Máximo de filas visibles (default 8)
  */
 import { useState } from 'react';
+import { PASS_THRESHOLD } from '../../utils/score';
 
-export default function BarChart({ data = [], threshold = 11, maxValue = 20, onBarClick, maxRows = 8 }) {
+export default function BarChart({ data = [], threshold = PASS_THRESHOLD, maxValue = 20, onBarClick, maxRows = 8 }) {
   const [hovered, setHovered] = useState(null);
 
   if (!data || data.length === 0) {

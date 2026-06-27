@@ -13,7 +13,7 @@ from ..serializers import (
     ExamDetailSerializer, ExamSerializer, ExamTemplateSerializer, ExamVisibilitySerializer,
     MonitoringAttemptSerializer,
 )
-from services.exam_engine import ExamEngine
+from services.exam_engine import ExamEngine, PASS_THRESHOLD
 from services.exceptions import (
     CrossTenantAccessError, ExamNotPublishedError,
 )
@@ -44,7 +44,7 @@ class ExamViewSet(viewsets.ModelViewSet):
         completed_filter = DjQ(attempts__status="COMPLETED")
         qs = qs.annotate(
             attempts_count=Count("attempts", filter=completed_filter, distinct=True),
-            pass_count=Count("attempts", filter=completed_filter & DjQ(attempts__score__gte=11), distinct=True),
+            pass_count=Count("attempts", filter=completed_filter & DjQ(attempts__score__gte=PASS_THRESHOLD), distinct=True),
             avg_score=Avg("attempts__score", filter=completed_filter),
             last_activity_at=Max("attempts__completed_at", filter=completed_filter),
         )
@@ -479,7 +479,7 @@ class ExamViewSet(viewsets.ModelViewSet):
         for exam in exams:
             completed = Attempt.objects.filter(exam=exam, status=Attempt.Status.COMPLETED)
             agg = completed.aggregate(avg=Avg("score"), total=Count("id"))
-            pass_count = completed.filter(score__gte=11).count()
+            pass_count = completed.filter(score__gte=PASS_THRESHOLD).count()
             pass_rate = (pass_count / agg["total"] * 100) if agg["total"] else None
 
             buckets = [0, 5, 8, 11, 15, 20]

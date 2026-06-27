@@ -104,14 +104,17 @@ Organization (tenant raíz)
 ### Escala de notas
 
 - `Attempt.score` almacena nota **vigesimal 0–20**
-- Umbral de aprobación: **score ≥ 11** (`PASS_THRESHOLD = 11`)
+- Umbral de aprobación: **score ≥ 14** (`PASS_THRESHOLD = 14`)
+- **Fuente única de verdad:** backend en `services/exam_engine.py` y frontend en
+  `utils/score.js` (`PASS_THRESHOLD`, `isPassing`, `scoreTone`). El resto de archivos importan
+  la constante en vez de hardcodear el número.
 - El dashboard devuelve `avg_score` en la misma escala 0–20
 - Para mostrar en porcentaje: `score × 5`
 
 ### Autenticación
 
 - **Docentes/Admin:** cookies httpOnly (`access_token` + `refresh_token`). El middleware `CookieAuthMiddleware` inyecta el token como `Authorization: Bearer` transparentemente.
-- **Alumnos:** `StudentAttemptAuthentication` — header `Authorization: Student <jwt>`. Payload contiene `attempt_id`, `student_id`, `org_id`, `exam_id`. Token vive en memoria (no localStorage).
+- **Alumnos:** `StudentAttemptAuthentication` — header `Authorization: Student <jwt>`. Payload contiene `attempt_id`, `student_id`, `org_id`, `exam_id`. El header se arma desde una variable en memoria, pero `attempt_token`/`attempt_id` también se guardan en `localStorage` **a propósito** para que una recarga a mitad del examen reanude la sesión. El token **solo es válido mientras el intento está `IN_PROGRESS`** y se revoca al entregar (por eso la constancia post-examen se genera en el cliente, no en el backend).
 - **Refresh:** `POST /auth/refresh/` sin body — lee `refresh_token` cookie y rota ambos tokens como nuevas cookies httpOnly.
 
 ### Multi-tenancy
@@ -130,7 +133,7 @@ Todos los querysets filtran por `organization_id` del usuario autenticado. Acces
 
 Al completar un examen, `ExamEngine.submit_exam()` crea automáticamente:
 - `attempt_finished` — siempre
-- `low_score` — si `score < 11`
+- `low_score` — si `score < 14`
 
 `GET /api/v1/notifications/` devuelve las últimas 30 notificaciones de la organización.
 
@@ -216,11 +219,33 @@ Las preferencias de email se gestionan en `GET/PATCH /api/v1/auth/me/notificatio
   **tarjetas de examen** y **badges** (tipo/dificultad). Los iconos chicos de control quedan en
   `plain` (legibilidad).
 - **Responsive + sidebar colapsable:** el `Sidebar` es drawer en `< md` (hamburguesa + overlay) y
-  persistente en `md+`, donde además se puede **ocultar/mostrar** (chevron para colapsar + botón
-  flotante para reabrir). `PageHead` apila título/acciones y las tablas usan `overflow-x-auto`.
-  Hooks `useIsMobile`/`useIsTablet` en `hooks/useMediaQuery.js`.
+  persistente en `md+`, donde además se puede **colapsar a un rail de solo iconos** (64 px, con
+  tooltips) y reexpandir desde el propio rail. El estado colapsado se **recuerda entre recargas**
+  (`localStorage` `sidebar_collapsed`). `PageHead` apila título/acciones y las tablas usan
+  `overflow-x-auto`. Hooks `useIsMobile`/`useIsTablet` en `hooks/useMediaQuery.js`.
+- **Pantallas de estado reutilizables:** `components/StatusScreen.jsx` (círculo de icono + título +
+  mensaje + acción) centraliza el patrón de pantalla completa usado en el login del alumno, el error
+  del examen y los resultados sin datos/deshabilitados.
+- **¿Respuesta respondida?:** `utils/answers.js` `isAnswered(value)` es la fuente única (maneja bien
+  el booleano `false` de V-F "Falso" y los arrays vacíos). Lo usa `ExamRunPage` para el mapa,
+  progreso, preguntas saltadas y el modal de finalizar.
 - **Sesión:** `AppShell` muestra un spinner "Verificando sesión…" mientras valida `/auth/me/` y
   redirige a `/login` si no hay sesión (el backend bloquea además todo dato sin auth → 401).
+
+### Experiencia del alumno (examen)
+
+- **Login en dos pasos** (`StudentLoginPage`): ingreso de DNI (8 dígitos, con indicador segmentado)
+  → confirmación de identidad → inicio. Tarjeta con banda de examen e indicador de pasos.
+- **Examen** (`ExamRunPage`): autosave + heartbeat + timer; mapa de preguntas con 4 estados
+  (respondida / actual / **saltada en ámbar** / sin ver); chip de **salidas de pestaña** (proctoring
+  visible); aviso `beforeunload` para no perder el examen por una recarga accidental; el aviso de
+  cambio de pestaña se muestra **al regresar** a la pestaña (así su temporizador no queda throttleado
+  y desaparece solo).
+- **Resultados** (`StudentResultsPage`): **hero verde** con felicitación al aprobar / **rojo** con
+  mensaje alentador y "te faltaron X puntos" al desaprobar (umbral 14). Desglose por pregunta, temas
+  a reforzar y **constancia descargable** ("Descargar constancia (PDF)" → `utils/certificate.js`
+  imprime un documento limpio que el navegador guarda como PDF; sin backend porque el token ya no es
+  válido tras finalizar).
 
 ---
 

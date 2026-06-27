@@ -22,7 +22,7 @@ function timeAgo(isoStr) {
   return `hace ${Math.floor(hrs / 24)} d`;
 }
 
-export default function NotificationBell() {
+export default function NotificationBell({ collapsed = false }) {
   const [items, setItems] = useState([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -69,13 +69,14 @@ export default function NotificationBell() {
     <div className="relative" ref={wrapperRef}>
       <button
         onClick={handleOpen}
-        className="relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-fg-2 hover:bg-bg-2 hover:text-fg-0 transition-colors"
+        title={collapsed ? 'Notificaciones' : undefined}
+        className={`relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-fg-2 hover:bg-bg-2 hover:text-fg-0 transition-colors ${collapsed ? 'md:justify-center md:px-0' : ''}`}
         aria-label="Notificaciones"
       >
         <Icon name="bell" size={16} strokeWidth={1.8} />
-        <span>Notificaciones</span>
+        <span className={collapsed ? 'md:hidden' : ''}>Notificaciones</span>
         {unread > 0 && (
-          <span className="absolute left-6 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-0.5 text-[10px] font-bold text-white">
+          <span className={`absolute left-6 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-0.5 text-[10px] font-bold text-white ${collapsed ? 'md:left-auto md:right-2' : ''}`}>
             {unread > 9 ? '9+' : unread}
           </span>
         )}

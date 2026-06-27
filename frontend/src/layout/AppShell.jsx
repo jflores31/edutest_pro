@@ -7,7 +7,10 @@ import { Icon } from '../design-system';
 export default function AppShell() {
   const { user, isAuthenticated, loading } = useAuth();
   const [navOpen, setNavOpen] = useState(false);     // drawer móvil
-  const [collapsed, setCollapsed] = useState(false); // menú oculto en escritorio
+  // menú colapsado en escritorio — se recuerda entre recargas
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem('sidebar_collapsed') === '1'; } catch { return false; }
+  });
 
   // Cierra el drawer con Escape (al navegar se cierra vía onClose en cada NavLink)
   useEffect(() => {
@@ -15,6 +18,11 @@ export default function AppShell() {
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, []);
+
+  // Persiste el estado colapsado del menú
+  useEffect(() => {
+    try { localStorage.setItem('sidebar_collapsed', collapsed ? '1' : '0'); } catch { /* almacenamiento no disponible */ }
+  }, [collapsed]);
 
   if (loading) {
     return (
@@ -41,7 +49,7 @@ export default function AppShell() {
         mobileOpen={navOpen}
         collapsed={collapsed}
         onClose={() => setNavOpen(false)}
-        onCollapse={() => setCollapsed(true)}
+        onToggleCollapse={() => setCollapsed(c => !c)}
       />
 
       {/* Overlay (solo móvil, con drawer abierto) */}
@@ -51,18 +59,6 @@ export default function AppShell() {
           onClick={() => setNavOpen(false)}
           aria-hidden="true"
         />
-      )}
-
-      {/* Botón flotante para volver a mostrar el menú en escritorio */}
-      {collapsed && (
-        <button
-          onClick={() => setCollapsed(false)}
-          aria-label="Mostrar menú"
-          title="Mostrar menú"
-          className="hidden md:flex fixed top-3 left-3 z-50 items-center justify-center rounded-xl border border-line bg-bg-1 p-2 text-fg-1 shadow-pop hover:bg-bg-2 transition-colors"
-        >
-          <Icon name="menu" size={18} />
-        </button>
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">

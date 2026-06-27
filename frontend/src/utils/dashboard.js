@@ -1,4 +1,5 @@
 export { formatRelative, formatDuration } from './formatters';
+import { PASS_THRESHOLD } from './score';
 
 export const PERIODS = [
   { key: '7d',  label: '7d' },
@@ -41,7 +42,7 @@ export function buildHistogram(raw = []) {
   return raw.map(b => ({
     range: b.label,
     count: b.count,
-    color: b.min >= 11 ? 'var(--color-ok)' : b.min >= 9 ? 'var(--color-warn)' : 'var(--color-danger)',
+    color: b.min >= PASS_THRESHOLD ? 'var(--color-ok)' : b.min >= 9 ? 'var(--color-warn)' : 'var(--color-danger)',
   }));
 }
 
@@ -64,5 +65,5 @@ export function buildDonut(total, passRate, abandonmentRate) {
 
 export function getAttemptVariant(score) {
   if (score == null) return 'warn';
-  return score >= 11 ? 'pass' : 'fail';
+  return score >= PASS_THRESHOLD ? 'pass' : 'fail';
 }

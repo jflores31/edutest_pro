@@ -4,6 +4,7 @@ import { PageHead } from '../../layout';
 import { Button, Icon, Badge, Card, Input, Tabs, Toggle, Skeleton } from '../../design-system';
 import { auth, courses as coursesApi, integrations as integrationsApi, notifications as notificationsApi, templates as templatesApi } from '../../services/api';
 import { ConfirmModal } from '../../features/shared/ConfirmModal';
+import { PASS_THRESHOLD } from '../../utils/score';
 
 const TABS = [
   { key: 'cuenta', label: 'Cuenta', icon: <Icon name="user" size={14} /> },
@@ -336,7 +337,7 @@ function NotificationsTab() {
 
   const items = [
     { key: 'attempt_finished',  label: 'Examen completado',       desc: 'Alerta cuando un alumno finaliza un examen',         icon: 'check'  },
-    { key: 'low_score',         label: 'Puntaje bajo',             desc: 'Alerta cuando un alumno reprueba (< 11/20)',          icon: 'trend'  },
+    { key: 'low_score',         label: 'Puntaje bajo',             desc: `Alerta cuando un alumno reprueba (< ${PASS_THRESHOLD}/20)`, icon: 'trend'  },
     { key: 'daily_summary',     label: 'Resumen diario',           desc: 'Resumen de actividad del día',                       icon: 'chart'  },
     { key: 'proctoring_alerts', label: 'Alertas de proctoring',    desc: 'Cambios de pestaña y pérdida de foco detectados',    icon: 'eye'    },
     { key: 'overdue_attempts',  label: 'Intentos abandonados',     desc: 'Intentos sin completar por tiempo agotado',          icon: 'clock'  },
