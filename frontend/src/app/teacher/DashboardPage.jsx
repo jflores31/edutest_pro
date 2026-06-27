@@ -9,6 +9,7 @@ import { DonutChart, BarChart, Heatmap, Histogram } from '../../features/charts'
 import { dashboard as dashboardApi, courses as coursesApi } from '../../services/api';
 import { KPICard, DonutSkeleton, BarSkeleton, ErrorBanner, LiveBanner, MobileAttemptCard, EmptyBanner, QuickActions } from '../../features/dashboard';
 import { PERIODS, STATUS_COLORS, AVATAR_COLORS, buildHeatmapMatrix, buildHistogram, buildBarData, buildDonut, getAttemptVariant, formatDuration, formatRelative } from '../../utils/dashboard';
+import { downloadCsv } from '../../utils/csv';
 
 function SortIcon({ col, sort }) {
   if (sort.col !== col) return <span className="text-fg-3 ml-1">↕</span>;
@@ -104,22 +105,11 @@ export default function DashboardPage() {
 
   const isEmpty = !statsLoading && stats?.total_attempts === 0;
   const handleExport = () => {
-    const csvField = (val) => {
-      const s = String(val ?? '');
-      // Prefix formula-starting characters to prevent injection
-      const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
-      // RFC 4180: wrap in quotes if contains comma, quote, or newline
-      return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
-    };
-    const header = 'Nombre,Examen,Nota,Estado,Fecha';
-    const rows = sortedAttempts.map(a =>
-      [a.user_name, a.exam, a.score ?? '', a.status, a.date].map(csvField).join(',')
-    ).join('\n');
-    const blob = new Blob([`\uFEFF${header}\n${rows}`], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const el = document.createElement('a');
-    el.href = url; el.download = 'intentos.csv'; el.click();
-    URL.revokeObjectURL(url);
+    const rows = [
+      ['Nombre', 'Examen', 'Nota', 'Estado', 'Fecha'],
+      ...sortedAttempts.map(a => [a.user_name, a.exam, a.score ?? '', a.status, a.date]),
+    ];
+    downloadCsv('intentos.csv', rows);
   };
 
   const periodLabel    = PERIODS.find(p => p.key === period)?.label ?? period;

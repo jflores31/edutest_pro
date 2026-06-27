@@ -9,6 +9,7 @@ import { PageHead } from '../../layout';
 import { Button, Icon, Badge, Card, Tabs } from '../../design-system';
 import { students as studentsApi, courses as coursesApi, imports as importsApi, exams as examsApi } from '../../services/api';
 import UploadZone from '../../features/import/UploadZone';
+import { downloadCsv } from '../../utils/csv';
 
 const TABS = [
   { key: 'examenes', label: 'Importar preguntas', icon: <Icon name="book" size={14} /> },
@@ -46,18 +47,8 @@ function DropZone({ onFile, dragOver, setDragOver, inputRef }) {
 }
 
 function DownloadTemplate({ columns, filename, examples }) {
-  function csvField(v) {
-    const s = String(v ?? '');
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  }
   function download() {
-    const lines = [columns, ...examples].map(row => row.map(csvField).join(','));
-    // BOM → Excel abre como UTF-8 (tildes/ñ correctas)
-    const blob = new Blob(['\uFEFF' + lines.join('\n') + '\n'], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = filename; a.click();
-    URL.revokeObjectURL(url);
+    downloadCsv(filename, [columns, ...examples]);
   }
   return (
     <Button variant="ghost" size="sm" icon={<Icon name="download" size={13} />} onClick={download}>
@@ -475,18 +466,13 @@ function ImportExamsTab() {
     // Exporta SOLO las filas con error + una columna "Error" (formato de 9 columnas).
     const exportErrors = () => {
       const head = ['Pregunta', 'Opción A', 'Opción B', 'Opción C', 'Opción D', 'Opción E', 'Respuesta Correcta', 'Explicación', 'Tema', 'Error'];
-      const cell = v => { const s = String(v ?? ''); return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
-      const lines = [head.map(cell).join(',')];
+      const dataRows = [];
       rows.forEach((r, i) => {
         const errs = errorsByIndex[i];
         if (!errs || !errs.length) return;
-        lines.push([r.text, r.option_a, r.option_b, r.option_c, r.option_d, r.option_e, r.correct_answer, r.explanation, r.category, errs.join(' | ')].map(cell).join(','));
+        dataRows.push([r.text, r.option_a, r.option_b, r.option_c, r.option_d, r.option_e, r.correct_answer, r.explanation, r.category, errs.join(' | ')]);
       });
-      const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = 'errores_importacion.csv'; a.click();
-      URL.revokeObjectURL(url);
+      downloadCsv('errores_importacion.csv', [head, ...dataRows]);
     };
 
     return (
