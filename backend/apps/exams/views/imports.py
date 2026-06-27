@@ -39,6 +39,21 @@ class ImportJobViewSet(viewsets.ReadOnlyModelViewSet):
         from django.conf import settings
         from tasks.import_tasks import process_import
         from services.exceptions import EduTestError
+        from services.import_service import MAX_FILE_SIZE_BYTES, SUPPORTED_EXTENSIONS
+
+        # Validar extensión y tamaño ANTES de escribir en disco: así un archivo con
+        # extensión arbitraria nunca llega a persistirse en MEDIA_ROOT.
+        ext = os.path.splitext(file.name)[1].lower()
+        if ext not in SUPPORTED_EXTENSIONS:
+            return Response(
+                {"error": f"Formato no soportado. Usa: {', '.join(sorted(SUPPORTED_EXTENSIONS))}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if file.size and file.size > MAX_FILE_SIZE_BYTES:
+            return Response(
+                {"error": f"El archivo supera el máximo de {MAX_FILE_SIZE_BYTES // (1024 * 1024)} MB."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         upload_dir = os.path.join(settings.MEDIA_ROOT, "imports")
         os.makedirs(upload_dir, exist_ok=True)
@@ -72,6 +87,13 @@ class ImportJobViewSet(viewsets.ReadOnlyModelViewSet):
                  "job": ImportJobSerializer(job).data},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+        finally:
+            # El import corre in-request; el archivo solo debe sobrevivir al request.
+            # Lo borramos siempre para no acumular subidas en MEDIA_ROOT.
+            try:
+                os.remove(file_path)
+            except OSError:
+                pass
 
         job.refresh_from_db()
         return Response(ImportJobSerializer(job).data, status=status.HTTP_201_CREATED)

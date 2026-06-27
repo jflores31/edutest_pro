@@ -5,17 +5,9 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>EduTest Pro</title>
-    <script>
-      // Aplicar tema guardado antes del primer paint para evitar flash
-      (function() {
-        try {
-          var t = localStorage.getItem('edutest_theme');
-          if (t === 'light' || t === 'dark') {
-            document.documentElement.setAttribute('data-theme', t);
-          }
-        } catch(e) {}
-      })();
-    </script>
+    <!-- Externo (no inline) para aplicar el tema antes del primer paint sin requerir
+         script-src 'unsafe-inline' en la CSP -->
+    <script src="/theme-init.js"></script>
   </head>
   <body>
     <div id="root"></div>
