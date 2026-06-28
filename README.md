@@ -114,7 +114,7 @@ Organization (tenant raíz)
 ### Autenticación
 
 - **Docentes/Admin:** cookies httpOnly (`access_token` + `refresh_token`). El middleware `CookieAuthMiddleware` inyecta el token como `Authorization: Bearer` transparentemente.
-- **Alumnos:** `StudentAttemptAuthentication` — header `Authorization: Student <jwt>`. Payload contiene `attempt_id`, `student_id`, `org_id`, `exam_id`. El header se arma desde una variable en memoria, pero `attempt_token`/`attempt_id` también se guardan en `localStorage` **a propósito** para que una recarga a mitad del examen reanude la sesión. El token **solo es válido mientras el intento está `IN_PROGRESS`** y se revoca al entregar (por eso la constancia post-examen se genera en el cliente, no en el backend).
+- **Alumnos:** `StudentAttemptAuthentication` — header `Authorization: Student <jwt>`. Payload contiene `attempt_id`, `student_id`, `org_id`, `exam_id`. El header se arma desde una variable en memoria, pero `attempt_token`/`attempt_id` también se guardan en `localStorage` **a propósito** para que una recarga a mitad del examen reanude la sesión. El token **solo es válido mientras el intento está `IN_PROGRESS`** y se revoca al entregar. El **certificado** post-examen usa un token aparte de tipo `"certificate"` (corto, 1 h, header `Authorization: Certificate <jwt>`) emitido en la respuesta de `submit` solo si el alumno aprobó — ver [Certificado de examen](#certificado-de-examen).
 - **Refresh:** `POST /auth/refresh/` sin body — lee `refresh_token` cookie y rota ambos tokens como nuevas cookies httpOnly.
 
 ### Multi-tenancy
@@ -243,9 +243,42 @@ Las preferencias de email se gestionan en `GET/PATCH /api/v1/auth/me/notificatio
   y desaparece solo).
 - **Resultados** (`StudentResultsPage`): **hero verde** con felicitación al aprobar / **rojo** con
   mensaje alentador y "te faltaron X puntos" al desaprobar (umbral 14). Desglose por pregunta, temas
-  a reforzar y **constancia descargable** ("Descargar constancia (PDF)" → `utils/certificate.js`
-  imprime un documento limpio que el navegador guarda como PDF; sin backend porque el token ya no es
-  válido tras finalizar).
+  a reforzar y, **solo si aprobó**, botón **"Descargar certificado"** (ver
+  [Certificado de examen](#certificado-de-examen)).
+
+---
+
+## Certificado de examen
+
+Certificado/constancia **renderizado en el backend** desde un diseño elegante (oro/azul marino,
+A4) y descargable como PDF. La regla **"solo aprobados"** se aplica en el servidor, no en la UI.
+
+```
+GET /api/v1/attempts/{id}/certificate/   →  HTML del certificado
+```
+
+**Gate (servidor):** el endpoint exige **intento `COMPLETED` + nota ≥ 14 + misma organización**;
+en cualquier otro caso responde `403` (o `404` si es de otra organización).
+
+**Acceso:**
+
+| Quién | Auth | Dónde |
+|---|---|---|
+| Docente/Admin | cookie de sesión (aislado por organización) | `AttemptDetailPage` — botón visible solo si el intento es `COMPLETED` y aprobó |
+| Alumno | token corto tipo `"certificate"` (1 h) emitido en la respuesta de `submit` **solo al aprobar**; header `Authorization: Certificate <jwt>` | `StudentResultsPage` — botón visible solo si `passed` |
+
+El token de certificado **solo lo acepta este endpoint** (no `state`/`submit`).
+
+**Render:**
+
+- **Backend:** plantilla Django `apps/exams/templates/exams/certificate.html`; el contexto
+  (nombre, examen, nota, institución = nombre de la organización, fecha en español, código de
+  verificación) lo arma `services/certificate.py`.
+- **Frontend:** `attempts.certificate()` (en `api.js`) trae el HTML y `utils/certificate.js`
+  `printHtml()` lo escribe en un iframe oculto y abre el diálogo de impresión → "Guardar como PDF".
+- **Seguridad:** se renderiza en un iframe del **mismo origen** bajo la CSP estricta, por eso la
+  plantilla usa **solo estilos inline + fuentes del sistema** (sin `<script>` ni fuentes externas);
+  Django auto-escapa nombre/examen → sin XSS.
 
 ---
 
