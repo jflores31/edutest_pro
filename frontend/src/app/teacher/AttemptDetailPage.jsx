@@ -6,6 +6,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { PageHead } from '../../layout';
 import { Button, Icon, Badge, Card } from '../../design-system';
 import { attempts } from '../../services/api';
+import { isPassing } from '../../utils/score';
+import { printHtml } from '../../utils/certificate';
 
 const STATUS_COLORS = {
   COMPLETED: 'ok',
@@ -25,6 +27,22 @@ export default function AttemptDetailPage() {
   const [attempt, setAttempt] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [certLoading, setCertLoading] = useState(false);
+  const [certError, setCertError] = useState(null);
+
+  // El backend exige intento completado + aprobado antes de servir el certificado;
+  // aquí solo lo pedimos (auth por cookie de profesor) e imprimimos.
+  async function handleCertificate() {
+    setCertError(null);
+    setCertLoading(true);
+    try {
+      printHtml(await attempts.certificate(id));
+    } catch (e) {
+      setCertError(e.message || 'No se pudo generar el certificado.');
+    } finally {
+      setCertLoading(false);
+    }
+  }
 
   useEffect(() => {
     let alive = true;
@@ -93,6 +111,14 @@ export default function AttemptDetailPage() {
             <div className="text-2xl font-bold text-fg-0">
               {attempt.score != null ? `${attempt.score}/20` : '—'}
             </div>
+            {attempt.status === 'COMPLETED' && isPassing(attempt.score) && (
+              <div className="mt-3">
+                <Button variant="secondary" onClick={handleCertificate} disabled={certLoading}>
+                  <Icon name="award" size={14} /> {certLoading ? 'Generando…' : 'Descargar certificado'}
+                </Button>
+                {certError && <p className="text-xs text-danger mt-2">{certError}</p>}
+              </div>
+            )}
           </Card>
           <Card padding="md">
             <div className="text-xs text-fg-2 mb-1">Duración</div>

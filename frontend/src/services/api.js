@@ -320,6 +320,21 @@ export const attempts = {
   heartbeat: (id) => post(`/attempts/${id}/heartbeat/`),
   finish: (id) => post(`/attempts/${id}/finish/`),
   event: (id, type, payload) => post(`/attempts/${id}/events/`, { event_type: type, payload }),
+  // Returns the certificate HTML (text). Teacher: session cookie. Student: short-lived
+  // certificate token (header-only). Backend enforces "completed + passed + same org".
+  certificate: async (id, { token } = {}) => {
+    const headers = { Accept: 'text/html' };
+    const opts = { method: 'GET', headers };
+    if (token) headers.Authorization = `Certificate ${token}`;
+    else opts.credentials = 'include';
+    const res = await fetch(`${API_BASE}/attempts/${id}/certificate/`, opts);
+    if (!res.ok) {
+      let detail = 'No se pudo generar el certificado.';
+      try { detail = (await res.json()).detail || detail; } catch { /* respuesta no-JSON */ }
+      throw new Error(detail);
+    }
+    return res.text();
+  },
 };
 
 // ============================================================

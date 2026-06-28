@@ -31,6 +31,27 @@ class StudentAttemptToken(AccessToken):
         return token
 
 
+class CertificateToken(AccessToken):
+    """Short-lived, single-attempt token to fetch a completed exam's certificate.
+
+    Issued in the submit response only when the attempt is passed. Unlike the
+    student-attempt token (4 h, IN_PROGRESS-only, revoked on finish), this token
+    is short-lived and is *only* accepted by the certificate endpoint.
+    """
+    token_type = "certificate"
+    lifetime = timedelta(hours=1)
+
+    @classmethod
+    def for_attempt(cls, attempt):
+        token = cls()
+        token["token_type"] = cls.token_type
+        token["attempt_id"] = str(attempt.id)
+        token["org_id"] = str(attempt.organization_id) if attempt.organization_id else None
+        token["exam_id"] = str(attempt.exam_id)
+        token["jti"] = str(uuid.uuid4())
+        return token
+
+
 class StudentPrincipal:
     """Lightweight request.user substitute for student-token requests."""
 
@@ -129,6 +150,78 @@ class StudentAttemptAuthentication(BaseAuthentication):
 
         if not attempt.exam.is_published:
             raise AuthenticationFailed("This exam is no longer available.")
+
+    def authenticate_header(self, request):
+        return f'{self.keyword} realm="api"'
+
+
+class CertificatePrincipal:
+    """request.user substitute for certificate-token requests.
+
+    Exposes ``attempt_id`` so AttemptViewSet.get_queryset resolves it through its
+    ``hasattr(user, "attempt_id")`` branch (scoping access to the single attempt).
+    """
+
+    def __init__(self, attempt_id, org_id):
+        self.id = attempt_id
+        self.attempt_id = attempt_id
+        self.organization_id = org_id
+
+    @property
+    def is_authenticated(self):
+        return True
+
+    @property
+    def is_anonymous(self):
+        return False
+
+    @property
+    def role(self):
+        return "STUDENT"
+
+    def has_perm(self, perm, obj=None):
+        return False
+
+    def has_module_perms(self, app_label):
+        return False
+
+    @property
+    def is_active(self):
+        return True
+
+    @property
+    def pk(self):
+        return self.attempt_id
+
+
+class CertificateAuthentication(BaseAuthentication):
+    """Accepts ``Authorization: Certificate <jwt>`` for the certificate endpoint only.
+
+    Validates signature + token type; the actual gate (attempt COMPLETED, passed,
+    same organization) is enforced by the certificate view.
+    """
+    keyword = "Certificate"
+
+    def authenticate(self, request):
+        auth = request.META.get("HTTP_AUTHORIZATION", "")
+        if not auth.startswith(f"{self.keyword} "):
+            return None
+        raw = auth[len(self.keyword) + 1:].strip()
+        try:
+            from rest_framework_simplejwt.tokens import UntypedToken
+            token = UntypedToken(raw)
+            if token.get("token_type") != "certificate":
+                return None
+
+            attempt_id = token.get("attempt_id")
+            org_id = token.get("org_id")
+            if not attempt_id:
+                raise AuthenticationFailed("Invalid certificate token payload.")
+
+            principal = CertificatePrincipal(attempt_id=attempt_id, org_id=org_id)
+            return (principal, token)
+        except (TokenError, KeyError):
+            return None
 
     def authenticate_header(self, request):
         return f'{self.keyword} realm="api"'

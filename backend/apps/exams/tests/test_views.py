@@ -716,3 +716,68 @@ class SnapshotSanitizationTest(TestCase):
         self.assertEqual(q1["metadata"].get("topic"), "Geo")
         # Multi-answer questions keep a non-revealing "choose more than one" hint.
         self.assertTrue(out["questions"][3]["metadata"].get("multiple"))
+
+
+# ── Certificate endpoint ──────────────────────────────────────────────────────
+
+class CertificateEndpointTest(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.org = make_org()
+        self.teacher = make_teacher(self.org)
+        self.exam = make_exam(self.org, self.teacher)
+        self.question = make_question(self.org, self.teacher)
+        ExamQuestion.objects.create(exam=self.exam, question=self.question, order=1)
+        self.snapshot = make_snapshot(self.exam, self.question)
+        self.client.force_authenticate(user=self.teacher)
+
+    def _attempt(self, *, status_value=Attempt.Status.COMPLETED, score=16):
+        attempt = make_attempt(self.org, self.teacher, self.exam, self.snapshot)
+        attempt.status = status_value
+        attempt.score = score
+        attempt.save(update_fields=["status", "score"])
+        return attempt
+
+    def _url(self, attempt):
+        return f"/api/v1/attempts/{attempt.id}/certificate/"
+
+    def test_teacher_passed_attempt_returns_html(self):
+        attempt = self._attempt(score=16)
+        resp = self.client.get(self._url(attempt))
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertTrue(resp["Content-Type"].startswith("text/html"))
+        self.assertIn(b"Aprobado", resp.content)
+        self.assertIn(b"SAMPLE EXAM", resp.content)  # exam title, uppercased
+
+    def test_failed_attempt_forbidden(self):
+        attempt = self._attempt(score=10)
+        resp = self.client.get(self._url(attempt))
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_in_progress_attempt_forbidden(self):
+        attempt = self._attempt(status_value=Attempt.Status.IN_PROGRESS, score=16)
+        resp = self.client.get(self._url(attempt))
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_cross_org_teacher_cannot_access(self):
+        attempt = self._attempt(score=16)
+        other_org = make_org("Other Org")
+        other_teacher = make_teacher(other_org, username="teacher2")
+        other = APIClient()
+        other.force_authenticate(user=other_teacher)
+        resp = other.get(self._url(attempt))
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_certificate_token_grants_only_certificate_access(self):
+        from apps.exams.auth import CertificateToken
+        attempt = self._attempt(score=16)
+        token = str(CertificateToken.for_attempt(attempt))
+        anon = APIClient()  # no session — relies solely on the certificate token
+        resp = anon.get(self._url(attempt), HTTP_AUTHORIZATION=f"Certificate {token}")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        # The same token must NOT authorize any other attempt endpoint.
+        state = anon.get(
+            f"/api/v1/attempts/{attempt.id}/state/",
+            HTTP_AUTHORIZATION=f"Certificate {token}",
+        )
+        self.assertNotEqual(state.status_code, status.HTTP_200_OK)

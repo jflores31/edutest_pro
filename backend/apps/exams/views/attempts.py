@@ -2,21 +2,25 @@ import logging
 from django.db import transaction
 from django.db.models import F
 from django.core.cache import cache
+from django.http import HttpResponse
+from django.template.loader import render_to_string
 from django.utils import timezone
 from datetime import timedelta
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
-from apps.exams.auth import StudentAttemptToken
+from apps.exams.auth import CertificateAuthentication, CertificateToken, StudentAttemptToken
 from .mixins import IsSameOrganization, IsTeacherOrAdmin, _client_ip, _rate_limit, _revoke_student_token
 from ..models import Attempt, Exam, ProctoringEvent, Student, User
 from ..serializers import (
     AttemptDetailSerializer, AttemptSerializer, SubmitExamSerializer,
 )
 from services.attempt_service import AttemptService, sanitize_snapshot_for_student
-from services.exam_engine import ExamEngine
+from services.certificate import build_certificate_context
+from services.exam_engine import ExamEngine, PASS_THRESHOLD
 from services.exceptions import (
     AttemptAlreadyCompletedError, AttemptNotFoundError, AttemptNotInProgressError,
     CrossTenantAccessError, ExamNotPublishedError, ExamTimeExpiredError,
@@ -62,6 +66,11 @@ class AttemptViewSet(viewsets.ReadOnlyModelViewSet):
         try:
             result = engine.submit_exam(str(pk), serializer.validated_data["answers"], request.user)
             _revoke_student_token(request)
+            # Passed attempts get a short-lived certificate token (header-only, this
+            # endpoint can't reuse the just-revoked attempt token).
+            if result.get("passed"):
+                attempt = Attempt.objects.get(pk=pk)
+                result["certificate_token"] = str(CertificateToken.for_attempt(attempt))
             return Response(result)
         except AttemptAlreadyCompletedError as e:
             return Response(e.to_dict(), status=status.HTTP_409_CONFLICT)
@@ -215,6 +224,38 @@ class AttemptViewSet(viewsets.ReadOnlyModelViewSet):
         )
         serializer = AttemptDetailSerializer(attempt, context={"request": request})
         return Response(serializer.data)
+
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="certificate",
+        authentication_classes=[JWTAuthentication, CertificateAuthentication],
+        permission_classes=[permissions.IsAuthenticated],
+    )
+    def certificate(self, request, pk=None):
+        """Render the exam certificate (HTML) for a passed, completed attempt.
+
+        Access: teacher/admin via session cookie (org-scoped by get_queryset) or
+        a student via the short-lived ``Authorization: Certificate <jwt>`` token.
+        The "passed only" rule is enforced here (server-side), not in the UI.
+        """
+        attempt = self.get_object()
+        if attempt.status != Attempt.Status.COMPLETED:
+            return Response(
+                {"detail": "El certificado no está disponible hasta que el examen se haya completado."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if attempt.score is None or float(attempt.score) < PASS_THRESHOLD:
+            return Response(
+                {"detail": "El certificado solo está disponible para exámenes aprobados."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        attempt = (
+            Attempt.objects.select_related("organization", "exam", "user", "student")
+            .get(pk=attempt.pk)
+        )
+        html = render_to_string("exams/certificate.html", build_certificate_context(attempt))
+        return HttpResponse(html, content_type="text/html; charset=utf-8")
 
     @action(detail=True, methods=["post"], url_path="extend-time")
     def extend_time(self, request, pk=None):

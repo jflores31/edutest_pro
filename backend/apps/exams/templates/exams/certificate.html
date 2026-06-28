@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Constancia de examen</title>
+<style>
+  :root {
+    --serif: Georgia, 'Times New Roman', 'Playfair Display', serif;
+    --sans: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  @media print {
+    body { background: #fff; }
+    .page-bg { background: #fff !important; padding: 0 !important; min-height: 0 !important; }
+    .paper { box-shadow: none !important; }
+    @page { size: A4 portrait; margin: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Page background -->
+<div class="page-bg" style="min-height: 100vh; background: linear-gradient(145deg, #2C2C2E 0%, #1A1A1C 100%); display: flex; justify-content: center; align-items: flex-start; padding: 52px 20px;">
+
+  <!-- Certificate paper -->
+  <div class="paper" style="width: 794px; flex-shrink: 0; background: linear-gradient(160deg, #FEFEFB 0%, #F9F6EE 55%, #FEFEFB 100%); position: relative; box-shadow: 0 32px 100px rgba(0,0,0,0.55), 0 4px 20px rgba(0,0,0,0.2);">
+
+    <!-- Outer gold border -->
+    <div style="position: absolute; inset: 14px; border: 2px solid #B8913A; pointer-events: none; z-index: 1;"></div>
+    <!-- Inner faint border -->
+    <div style="position: absolute; inset: 21px; border: 1px solid rgba(184,145,58,0.28); pointer-events: none; z-index: 1;"></div>
+
+    <!-- Corner brackets -->
+    <div style="position: absolute; top: 7px; left: 7px;   width: 20px; height: 20px; border-top: 3px solid #B8913A; border-left: 3px solid #B8913A;  z-index: 2;"></div>
+    <div style="position: absolute; top: 7px; right: 7px;  width: 20px; height: 20px; border-top: 3px solid #B8913A; border-right: 3px solid #B8913A; z-index: 2;"></div>
+    <div style="position: absolute; bottom: 7px; left: 7px;  width: 20px; height: 20px; border-bottom: 3px solid #B8913A; border-left: 3px solid #B8913A;  z-index: 2;"></div>
+    <div style="position: absolute; bottom: 7px; right: 7px; width: 20px; height: 20px; border-bottom: 3px solid #B8913A; border-right: 3px solid #B8913A; z-index: 2;"></div>
+
+    <!-- Content -->
+    <div style="padding: 62px 82px 54px; text-align: center; position: relative; z-index: 2;">
+
+      <!-- Top header row -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 26px;">
+        <span style="font-family: var(--sans); font-size: 9px; letter-spacing: 3.5px; color: #B8913A; font-weight: 500; text-transform: uppercase;">Documento Oficial</span>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div style="width: 26px; height: 26px; border-radius: 50%; background: #1B2A4A; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <span style="font-family: var(--serif); font-size: 13px; font-weight: 700; color: #B8913A; line-height: 1;">{{ institution_initial }}</span>
+          </div>
+          <span style="font-family: var(--sans); font-size: 11px; letter-spacing: 2px; color: #1B2A4A; font-weight: 600; text-transform: uppercase;">{{ institution }}</span>
+        </div>
+      </div>
+
+      <!-- Top ornamental divider -->
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 30px;">
+        <div style="flex: 1; height: 1px; background: linear-gradient(to right, transparent, #B8913A);"></div>
+        <div style="display: flex; align-items: center; gap: 5px;">
+          <div style="width: 7px; height: 7px; border: 1.5px solid #B8913A; transform: rotate(45deg);"></div>
+          <div style="width: 5px; height: 5px; background: #B8913A; transform: rotate(45deg);"></div>
+          <div style="width: 7px; height: 7px; border: 1.5px solid #B8913A; transform: rotate(45deg);"></div>
+        </div>
+        <div style="flex: 1; height: 1px; background: linear-gradient(to left, transparent, #B8913A);"></div>
+      </div>
+
+      <!-- Title block -->
+      <p style="font-family: var(--sans); font-size: 10px; letter-spacing: 7px; color: #B8913A; font-weight: 600; text-transform: uppercase; margin: 0 0 8px;">Constancia de</p>
+      <h1 style="font-family: var(--serif); font-size: 48px; font-weight: 700; color: #1B2A4A; letter-spacing: 6px; text-transform: uppercase; margin: 0 0 6px; line-height: 1.1;">Examen</h1>
+      <p style="font-family: var(--sans); font-size: 10px; letter-spacing: 3px; color: #A0A8BC; font-weight: 400; margin: 0 0 34px;">{{ year }}</p>
+
+      <!-- Intro -->
+      <p style="font-family: var(--sans); font-size: 11px; letter-spacing: 2.5px; color: #7A8098; font-weight: 300; text-transform: uppercase; margin: 0 0 14px;">La presente certifica que</p>
+
+      <!-- Student name -->
+      <h2 style="font-family: var(--serif); font-size: 40px; font-weight: 700; color: #1B2A4A; line-height: 1.15; margin: 0 0 10px; padding: 0 12px; text-wrap: balance;">{{ student_name|upper }}</h2>
+
+      <!-- Name accent underline -->
+      <div style="display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 28px;">
+        <div style="width: 48px; height: 1px; background: linear-gradient(to right, transparent, #B8913A);"></div>
+        <div style="width: 4px; height: 4px; background: #B8913A; border-radius: 50%;"></div>
+        <div style="width: 110px; height: 2px; background: #B8913A;"></div>
+        <div style="width: 4px; height: 4px; background: #B8913A; border-radius: 50%;"></div>
+        <div style="width: 48px; height: 1px; background: linear-gradient(to left, transparent, #B8913A);"></div>
+      </div>
+
+      <!-- Exam details -->
+      <p style="font-family: var(--sans); font-size: 13px; color: #7A8098; font-weight: 300; margin: 0 0 5px;">presentó el examen</p>
+      <p style="font-family: var(--sans); font-size: 15px; font-weight: 600; color: #1B2A4A; letter-spacing: 2px; text-transform: uppercase; margin: 0 0 5px;">{{ exam_name|upper }}</p>
+      <p style="font-family: var(--sans); font-size: 13px; color: #7A8098; font-weight: 300; margin: 0 0 30px;">obteniendo la siguiente calificación:</p>
+
+      {% if is_approved %}
+      <!-- Score — APROBADO -->
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 14px; margin-bottom: 36px;">
+        <div style="width: 152px; height: 152px; border-radius: 50%; border: 4px solid #176A42; background: rgba(23,106,66,0.06); display: flex; flex-direction: column; align-items: center; justify-content: center;">
+          <span style="font-family: var(--serif); font-size: 56px; font-weight: 700; color: #176A42; line-height: 1;">{{ formatted_score }}</span>
+          <span style="font-family: var(--sans); font-size: 12px; color: #176A42; opacity: 0.6; margin-top: 3px;">/ {{ max_score }}</span>
+        </div>
+        <div style="background: #176A42; padding: 10px 38px; border-radius: 2px;">
+          <span style="font-family: var(--sans); font-size: 10px; font-weight: 700; letter-spacing: 6px; color: #FFFFFF; text-transform: uppercase;">Aprobado</span>
+        </div>
+      </div>
+      {% else %}
+      <!-- Score — DESAPROBADO -->
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 14px; margin-bottom: 36px;">
+        <div style="width: 152px; height: 152px; border-radius: 50%; border: 4px solid #B52820; background: rgba(181,40,32,0.05); display: flex; flex-direction: column; align-items: center; justify-content: center;">
+          <span style="font-family: var(--serif); font-size: 56px; font-weight: 700; color: #B52820; line-height: 1;">{{ formatted_score }}</span>
+          <span style="font-family: var(--sans); font-size: 12px; color: #B52820; opacity: 0.6; margin-top: 3px;">/ {{ max_score }}</span>
+        </div>
+        <div style="background: #B52820; padding: 10px 38px; border-radius: 2px;">
+          <span style="font-family: var(--sans); font-size: 10px; font-weight: 700; letter-spacing: 6px; color: #FFFFFF; text-transform: uppercase;">Desaprobado</span>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Date -->
+      <p style="font-family: var(--sans); font-size: 13px; color: #7A8098; font-weight: 300; margin: 0 0 40px;">
+        Fecha: <strong style="font-weight: 500; color: #1B2A4A;">{{ date }}</strong>
+      </p>
+
+      <!-- Mid ornamental divider -->
+      <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 34px;">
+        <div style="flex: 1; height: 1px; background: rgba(184,145,58,0.22);"></div>
+        <div style="width: 5px; height: 5px; background: rgba(184,145,58,0.45); transform: rotate(45deg);"></div>
+        <div style="flex: 1; height: 1px; background: rgba(184,145,58,0.22);"></div>
+      </div>
+
+      <!-- Signatures row -->
+      <div style="display: flex; justify-content: space-between; align-items: flex-end; padding: 0 10px; margin-bottom: 30px;">
+
+        <!-- Signature 1 -->
+        <div style="text-align: center; width: 178px;">
+          <div style="height: 1px; background: #1B2A4A; margin-bottom: 10px;"></div>
+          <p style="font-family: var(--sans); font-size: 10px; font-weight: 600; color: #1B2A4A; letter-spacing: 1.5px; text-transform: uppercase; margin: 0 0 3px;">Evaluador</p>
+          <p style="font-family: var(--sans); font-size: 9px; color: #9AA0B4; margin: 0;">{{ institution }}</p>
+        </div>
+
+        <!-- Official seal -->
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 8px;">
+          <div style="width: 82px; height: 82px; border-radius: 50%; border: 2px dashed rgba(184,145,58,0.32); display: flex; align-items: center; justify-content: center;">
+            <div style="width: 68px; height: 68px; border-radius: 50%; border: 1px solid rgba(184,145,58,0.22); display: flex; align-items: center; justify-content: center;">
+              <p style="font-family: var(--sans); font-size: 7.5px; color: rgba(184,145,58,0.42); text-align: center; letter-spacing: 0.5px; text-transform: uppercase; line-height: 1.6; margin: 0;">Sello<br>Oficial</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Signature 2 -->
+        <div style="text-align: center; width: 178px;">
+          <div style="height: 1px; background: #1B2A4A; margin-bottom: 10px;"></div>
+          <p style="font-family: var(--sans); font-size: 10px; font-weight: 600; color: #1B2A4A; letter-spacing: 1.5px; text-transform: uppercase; margin: 0 0 3px;">Director Académico</p>
+          <p style="font-family: var(--sans); font-size: 9px; color: #9AA0B4; margin: 0;">{{ institution }}</p>
+        </div>
+
+      </div>
+
+      <!-- Footer -->
+      <div style="border-top: 1px solid rgba(184,145,58,0.18); padding-top: 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+        <p style="font-family: var(--sans); font-size: 9px; color: #A8AEBF; margin: 0; text-align: left; letter-spacing: 0.3px; line-height: 1.5;">
+          Documento generado por {{ institution }} &middot; Nota mínima de aprobación: {{ min_approval }}/{{ max_score }}
+        </p>
+        <p style="font-family: var(--sans); font-size: 9px; color: #B8913A; font-weight: 500; letter-spacing: 1.5px; margin: 0; white-space: nowrap; flex-shrink: 0;">{{ ver_code }}</p>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

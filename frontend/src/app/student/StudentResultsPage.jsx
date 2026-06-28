@@ -3,28 +3,36 @@
  * Lee los datos del backend desde location.state.result
  * Muestra condicionalmente según settings: show_score, show_answers, show_explanations
  */
+import { useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Icon, Badge, Card, Button } from '../../design-system';
 import { PASS_THRESHOLD } from '../../utils/score';
 import StatusScreen from '../../components/StatusScreen';
-import { printCertificate } from '../../utils/certificate';
+import { printHtml } from '../../utils/certificate';
+import { attempts } from '../../services/api';
 
 export default function StudentResultsPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const result = location.state?.result;
-  const examTitle = location.state?.examTitle || '';
+  const [certLoading, setCertLoading] = useState(false);
+  const [certError, setCertError] = useState(null);
 
-  function handleDownloadCertificate() {
-    if (!result) return;
-    printCertificate({
-      name: result.student_name || '',
-      examTitle,
-      score: result.score ?? null,
-      scoreMax: result.score_max || 20,
-      passed: result.passed ?? false,
-    });
+  // El certificado se genera en el backend (regla "solo aprobados"); aquí solo se
+  // pide e imprime. El token de certificado viaja en la respuesta de submit.
+  async function handleDownloadCertificate() {
+    if (!result?.passed || !result.attempt_id) return;
+    setCertError(null);
+    setCertLoading(true);
+    try {
+      const html = await attempts.certificate(result.attempt_id, { token: result.certificate_token });
+      printHtml(html);
+    } catch (e) {
+      setCertError(e.message || 'No se pudo generar el certificado.');
+    } finally {
+      setCertLoading(false);
+    }
   }
 
   // ── No data ──
@@ -68,14 +76,9 @@ export default function StudentResultsPage() {
         title="Examen completado"
         message="Tu examen ha sido enviado correctamente."
         action={
-          <div className="flex flex-col items-center gap-3">
-            <Button variant="secondary" onClick={handleDownloadCertificate}>
-              Descargar constancia (PDF)
-            </Button>
-            <Button onClick={() => navigate(`/exam/${slug}`, { replace: true })}>
-              Volver al inicio
-            </Button>
-          </div>
+          <Button onClick={() => navigate(`/exam/${slug}`, { replace: true })}>
+            Volver al inicio
+          </Button>
         }
       />
     );
@@ -250,19 +253,23 @@ export default function StudentResultsPage() {
 
         {/* Acciones */}
         <div className="text-center pb-8 space-y-3">
-          <div>
-            <Button
-              variant="secondary"
-              onClick={handleDownloadCertificate}
-              icon={
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                </svg>
-              }
-            >
-              Descargar constancia (PDF)
-            </Button>
-          </div>
+          {passed && (
+            <div>
+              <Button
+                variant="secondary"
+                onClick={handleDownloadCertificate}
+                disabled={certLoading}
+                icon={
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                  </svg>
+                }
+              >
+                {certLoading ? 'Generando…' : 'Descargar certificado'}
+              </Button>
+              {certError && <p className="text-xs text-danger mt-2">{certError}</p>}
+            </div>
+          )}
           <div>
             <Button onClick={() => navigate(`/exam/${slug}`, { replace: true })}>
               Volver al inicio
