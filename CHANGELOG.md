@@ -4,6 +4,25 @@ Todos los cambios notables de este proyecto se documentan aquí.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/)
 y el proyecto adopta [SemVer](https://semver.org/lang/es/).
 
+## [0.6.0](https://github.com/jflores31/edutest_pro/compare/v0.5.0...v0.6.0) (2026-06-28)
+
+
+### Features
+
+* **certificate:** constancia de examen server-side solo para aprobados ([c5f5657](https://github.com/jflores31/edutest_pro/commit/c5f56575314b842485ab105397ca50134a0e3662))
+* **student-login:** rediseño del ingreso de DNI ([0d7865d](https://github.com/jflores31/edutest_pro/commit/0d7865dc4a7a6c91aaebcd6fc28184160dd33231))
+* **student:** mejorar experiencia de examen, umbral 14 y reutilización ([9be2e84](https://github.com/jflores31/edutest_pro/commit/9be2e840554a979125a0536e594b3d57739c505f))
+
+
+### Bug Fixes
+
+* **exam-run:** el puntito amarillo marca la pregunta actual del alumno ([dbad05d](https://github.com/jflores31/edutest_pro/commit/dbad05d7a4ded3b7509441fcf5102f5c9f19e147))
+* **questions:** banco reconocía todo como opción múltiple; centralizar tipo de pregunta ([baf783b](https://github.com/jflores31/edutest_pro/commit/baf783b6ac2023b11fe1e6312dcc72be6ea5eb17))
+* **security:** blindar /media, CSP sin script inline y validar import antes de escribir ([652c1dc](https://github.com/jflores31/edutest_pro/commit/652c1dc305ac0cd10e612fa4dce3a7169b53681d))
+* **security:** prevent CSV formula injection + centralize CSV export ([7727059](https://github.com/jflores31/edutest_pro/commit/772705925959754e15f0be1edfd804a30292e059))
+* **topic:** el tema no se mostraba/round-trip por clave inconsistente y editor sin input ([5af281a](https://github.com/jflores31/edutest_pro/commit/5af281a3aaf591e87b47fa1a5c1666b48964de89))
+* **ui:** darken teal/amber/sky/emerald icon tones in light theme for legibility ([f051f24](https://github.com/jflores31/edutest_pro/commit/f051f247f664cbe179ee78522123a156137fa288))
+
 ## [0.5.0](https://github.com/jflores31/edutest_pro/compare/v0.4.1...v0.5.0) (2026-06-24)
 
 
